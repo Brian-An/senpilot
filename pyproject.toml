@@ -1,0 +1,27 @@
+[project]
+name = "senpilot"
+version = "0.1.0"
+description = "Download public Nova Scotia regulatory filings and package verified files."
+requires-python = ">=3.12"
+dependencies = ["playwright>=1.55,<2"]
+
+[project.scripts]
+senpilot = "senpilot.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-asyncio>=1,<2", "ruff>=0.12,<1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

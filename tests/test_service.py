@@ -448,3 +448,67 @@ async def test_retention_cleans_upload_interrupted_before_preparation(
             "Contents", []
         )
         client.close()
+
+
+async def test_signed_email_receives_zip_after_site_layout_recovery(
+    store: JobStore,
+    artifacts: ArtifactStore,
+    worker_settings: WorkerSettings,
+    sender: OutboundServer,
+    redesigned_site: tuple[str, list[str]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pathlib import Path
+
+    import senpilot.worker as worker_module
+    from senpilot.models import DownloadRequest, DownloadResult
+    from senpilot.recovery import BrowserRecovery
+    from tests.recovery_fixtures import scripted_model
+
+    real_download = worker_module.download_matter
+
+    async def quick_download(
+        request: DownloadRequest,
+        root: Path,
+        *,
+        base_url: str,
+        recovery: BrowserRecovery | None = None,
+    ) -> DownloadResult:
+        return await real_download(
+            request, root, base_url=base_url, timeout_ms=200, recovery=recovery
+        )
+
+    monkeypatch.setattr(worker_module, "download_matter", quick_download)
+    body, headers, public = signed_email("Please send Key Documents for M12205")
+    app = create_app(
+        WebSettings(TEST_DATABASE, "agent@example.com", frozenset({"*"}), public), store
+    )
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as api,
+    ):
+        response = await api.post("/webhooks/sendgrid/inbound", content=body, headers=headers)
+        assert response.status_code == 200
+    settings = replace(
+        worker_settings,
+        openai_api_key="test-key",
+        sendgrid_api_base=f"http://127.0.0.1:{sender.server_port}",
+    )
+    async with httpx.AsyncClient() as outbound:
+
+        async def route(request: httpx.Request) -> httpx.Response:
+            if request.url.host == "api.openai.com":
+                return scripted_model(request)
+            return await outbound.send(request)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(route)) as client:
+            assert await Worker(
+                settings, store, artifacts, client, download_base_url=redesigned_site[0]
+            ).run_once()
+    assert len(sender.received) == 1
+    reply = sender.received[0]
+    assert "Halifax Regional Water Commission" in reply["content"][0]["value"]
+    assert "attachments" in reply
+    with zipfile.ZipFile(BytesIO(base64.b64decode(reply["attachments"][0]["content"]))) as archive:
+        assert len(archive.namelist()) == 2
+        assert archive.testzip() is None

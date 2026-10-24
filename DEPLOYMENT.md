@@ -164,6 +164,21 @@ Personal information included in the subject or current message body can still b
 It uses OpenAI's Responses API with a strict JSON schema, no tools, and `store=false`.
 Provider abuse-monitoring retention can still apply; `store=false` disables stored Responses state rather than guaranteeing zero retention.
 Only one matter number grounded in the request and one supported category can proceed to the downloader, with the existing ten-file limit.
+
+The same worker-only key enables browser recovery when the fixed adapter encounters navigation or layout failures.
+A known nonexistent or mismatched matter and a file-byte validation failure do not trigger recovery.
+The browser starts from the configured Nova Scotia source in a fresh page and blocks requests outside that exact origin, including popup requests.
+It exposes fixed click, matter-entry, scroll, observation, export-confirmation, and download operations rather than executing model-authored code.
+The model receives visible page text, control positions, recent actions, and public portal screenshots.
+Metadata and document values are read from referenced page evidence; generated values cannot become filing metadata.
+The application selects the requested category, checks all five category counts, enforces source entry and file limits, and verifies downloaded bytes.
+Completed source identifiers or uniquely matched source evidence prevent duplicate retrieval when recovery resumes a partial run.
+Ambiguous identities or incomplete attachment retrieval produce a failure or partial result rather than an empty-success response.
+Recovery has a maximum of fifty decisions and 180 seconds, including transfers.
+It uses `OPENAI_MODEL`, which must support image input and strict structured output.
+The manifest retains a bounded action trace alongside the usual source metadata and file hashes.
+Public page screenshots consume additional API usage; recovery can take longer than the fixed adapter.
+This does not guarantee recovery from every redesign, a changed category taxonomy, source access restrictions, or unsupported interfaces.
 Ambiguous requests, missing credentials, refusals, invalid output, and API failures receive the standard clarification reply without a download.
 Clarification replies must include the full matter number and document category; conversation history is not used to fill missing fields.
 
@@ -208,6 +223,8 @@ docker build -t senpilot:local .
 The tests use isolated local PostgreSQL, an HTTP S3-compatible test server, real Chromium downloads, and a local SendGrid API receiver.
 They do not send real email or modify a live Supabase project.
 AI tests use a controlled HTTP transport rather than spending API credits.
+Recovery tests exercise a real browser against a redesigned local portal with renamed controls, different classes, direct downloads, delayed rendering, and reordered metadata markup.
+They also verify partial-download preservation, attachment completion, shared titles with distinct source IDs, source ordering, download and popup origin restrictions, export filenames, malformed model responses, and execution bounds.
 `SENPILOT_TEST_DATABASE_URL` can point to the isolated test container on a Docker network.
 The fixture refuses to truncate databases outside the local `senpilot_test` database.
 

@@ -17,6 +17,7 @@ from senpilot.extraction import extract_request
 from senpilot.jobs import Job, JobStore, LeaseLost
 from senpilot.models import DocumentType, DownloadRequest
 from senpilot.pipeline import download_matter
+from senpilot.recovery import BrowserRecovery
 from senpilot.replies import TOO_LARGE, ComposedReply, compose_reply, summarize_manifest
 from senpilot.sendgrid import DeliveryRejected, DeliveryUncertain, send_reply
 from senpilot.storage import ArtifactStore
@@ -109,6 +110,11 @@ class Worker:
                         ),
                         root,
                         base_url=self.download_base_url,
+                        recovery=BrowserRecovery(
+                            self.client, self.settings.openai_api_key, self.settings.openai_model
+                        )
+                        if self.settings.openai_api_key
+                        else None,
                     )
                     manifest = cast(dict[str, object], json.loads(result.manifest_path.read_text()))
                     body = summarize_manifest(manifest)

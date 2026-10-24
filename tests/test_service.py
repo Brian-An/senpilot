@@ -128,9 +128,10 @@ def signed_email(
 
 async def test_health_checks_use_paths_available_through_cloud_run(store: JobStore) -> None:
     app = create_app(WebSettings(TEST_DATABASE, "agent@example.com", frozenset(), "unused"), store)
-    async with app.router.lifespan_context(app), httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://test"
-    ) as client:
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client,
+    ):
         assert (await client.get("/health")).json() == {"status": "ok"}
         assert (await client.get("/ready")).json() == {"status": "ready"}
 

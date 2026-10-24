@@ -32,10 +32,16 @@ class SiteError(RuntimeError):
     pass
 
 
+class MatterUnavailable(SiteError):
+    pass
+
+
 class HeaderSnapshot(TypedDict):
     fields: list[str]
     title: str
     date_labels: list[str]
+    field_labels: list[str]
+    field_positions: list[list[float]]
 
 
 HEADER_SCRIPT = """() => {
@@ -51,7 +57,23 @@ HEADER_SCRIPT = """() => {
         [0]?.textContent.trim() : '';
     const date_labels = boxes.map(el => el.textContent.trim().replace(/\\s+/g,' '))
         .filter(text => /^(Date Received|Decision Date|Date Final)/.test(text));
-    return {fields, title: title || '', date_labels};
+    const known = new Set(['matterno','matternumber','type','mattertype','status',
+      'datereceived','decisiondate','datefinal','outcome','category']);
+    const labels=boxes.filter(el=>known.has(el.textContent.toLowerCase().replace(/[^a-z0-9]/g,'')));
+    const field_labels=Array.from(document.querySelectorAll('.fm-textarea .text'))
+      .filter(el=>!el.closest('tr')).map(el=>{
+        const r=el.getBoundingClientRect();
+        return labels.filter(label=>{
+          const b=label.getBoundingClientRect();
+          return b.bottom<=r.top+6 && r.top-b.bottom<160 && Math.abs(b.left-r.left)<32;
+        }).sort((a,b)=>b.getBoundingClientRect().bottom-a.getBoundingClientRect().bottom)
+          [0]?.textContent.trim().replace(/\\s+/g,' ') || '';
+      });
+    const field_positions=Array.from(document.querySelectorAll('.fm-textarea .text'))
+      .filter(el=>!el.closest('tr')).map(el=>{
+        const r=el.getBoundingClientRect(); return [r.left,r.top];
+      });
+    return {fields, title: title || '', date_labels,field_labels,field_positions};
 }"""
 
 ROWS_SCRIPT = """() => Array.from(document.querySelectorAll('tr[role="row"]'))
@@ -89,9 +111,18 @@ def parse_document(fields: list[str], category: DocumentType) -> SourceDocument:
     else:
         identifier = ""
         title = next((v for v in fields if v not in {date, security, extension}), category.value)
+    identifier_from_source = bool(identifier)
     if not identifier:
         identifier = hashlib.sha256("\x1f".join(fields).encode()).hexdigest()[:16]
-    return SourceDocument(identifier, title, source_date(date), security, extension, tuple(fields))
+    return SourceDocument(
+        identifier,
+        title,
+        source_date(date),
+        security,
+        extension,
+        tuple(fields),
+        identifier_from_source,
+    )
 
 
 class UarbSite:
@@ -119,15 +150,51 @@ class UarbSite:
                 /^Exhibits\\s*-\\s*\\d+/.test(el.textContent.trim())) ||
                 /No records matched|No Records Found/i.test(document.body.innerText)"""
         )
-        if await self.page.get_by_text(re.compile("No records matched", re.I)).count():
-            raise SiteError(f"matter {matter_number} was not found")
+        if await self.page.get_by_text(
+            re.compile("No records matched|No Records Found", re.I)
+        ).count():
+            raise MatterUnavailable(f"matter {matter_number} was not found")
         # Playwright's evaluate result crosses an untyped DOM boundary.
         snapshot = cast(HeaderSnapshot, await self.page.evaluate(HEADER_SCRIPT))
         fields = snapshot["fields"]
-        if len(fields) != 7 or fields[0] != matter_number:
-            raise SiteError(f"source did not return the requested matter {matter_number}")
+        if len(fields) != 7:
+            raise SiteError("matter metadata layout is not recognized")
+        if fields[0] != matter_number:
+            raise MatterUnavailable(f"source did not return the requested matter {matter_number}")
         if not snapshot["title"] or len(snapshot["date_labels"]) != 2:
             raise SiteError("matter metadata layout is not recognized")
+        expected_labels = [
+            {"matterno", "matternumber"},
+            {"type", "mattertype"},
+            {"status"},
+            {"datereceived"},
+            {"decisiondate", "datefinal"},
+            {"outcome"},
+            {"category"},
+        ]
+        if any(
+            label and re.sub(r"[^a-z0-9]", "", label.lower()) not in expected
+            for label, expected in zip(snapshot["field_labels"], expected_labels, strict=True)
+        ):
+            raise SiteError("matter metadata field layout is not recognized")
+        positions = snapshot["field_positions"]
+        # The known visual layout binds unlabelled fields to their positional meanings.
+        if not (
+            abs(positions[0][0] - positions[2][0]) < 32
+            and abs(positions[1][0] - positions[6][0]) < 32
+            and positions[0][0]
+            < positions[6][0]
+            < positions[3][0]
+            < positions[4][0]
+            < positions[5][0]
+            and positions[1][1] > positions[6][1] + 20
+            and positions[2][1] > positions[0][1] + 20
+            and abs(positions[1][1] - positions[2][1]) < 24
+        ):
+            raise SiteError("matter metadata visual layout is not recognized")
+        date_labels = snapshot["field_labels"][3:5]
+        if not all(date_labels):
+            date_labels = snapshot["date_labels"]
         counts: dict[str, int] = {}
         for category in DocumentType:
             button = self.page.get_by_role(
@@ -142,7 +209,7 @@ class UarbSite:
             status=fields[2],
             outcome=fields[5],
             category=fields[6],
-            dates=dict(zip(snapshot["date_labels"], map(source_date, fields[3:5]), strict=True)),
+            dates=dict(zip(date_labels, map(source_date, fields[3:5]), strict=True)),
             category_counts=counts,
         )
 
@@ -259,6 +326,7 @@ class UarbSite:
                     message = str(exc) or "download exceeded its completion timeout"
                     failures.append(DownloadFailure(document, message, original))
         except (BrowserError, SiteError) as exc:
+            navigation_error = "source document controls are not recognized"
             failures.append(DownloadFailure(document, str(exc)))
         finally:
             try:

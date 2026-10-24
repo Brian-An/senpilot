@@ -82,6 +82,15 @@ The output directory needs space for both the downloaded files and their ZIP.
 These checks detect common download failures; they do not constitute full document-format validation or malware scanning.
 The final ZIP is checked for CRC integrity.
 
+When the hosted worker encounters an unfamiliar source layout, it can use AI browser recovery with the configured OpenAI key.
+Recovery identifies visible controls and source evidence, preserves completed downloads, and resumes remaining entries without overwriting files.
+It is limited to the configured source origin, fifty browser decisions, and three minutes.
+The application verifies the matter, the five source category counts, entry order, public access labels, and downloaded bytes before packaging.
+If the source evidence cannot be verified, recovery reports failure or partial results.
+A category taxonomy change or an inaccessible source can still require an adapter update.
+The manifest records `recovery_attempted` and `recovery_trace`, and document metadata distinguishes source identifiers from generated identifiers.
+The standalone CLI uses the fixed adapter; Python integrations can pass a `BrowserRecovery` instance to `download_matter` to enable recovery.
+
 | Status | Meaning | Exit code |
 | --- | --- | --- |
 | `complete` | Selected files downloaded and verified | `0` |

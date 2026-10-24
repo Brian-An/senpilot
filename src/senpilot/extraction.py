@@ -8,6 +8,7 @@ import httpx
 from senpilot.config import WorkerSettings
 from senpilot.inbound import matter_candidates
 from senpilot.models import DocumentType, DownloadRequest
+from senpilot.openai_output import final_output
 
 logger = logging.getLogger(__name__)
 INSTRUCTIONS = """Extract a regulatory document download request from the supplied email text.
@@ -64,26 +65,7 @@ async def extract_request(
             timeout=httpx.Timeout(30, connect=5),
         )
         response.raise_for_status()
-        result = response.json()
-        if not isinstance(result, dict) or result.get("status") != "completed":
-            return None
-        output = result.get("output")
-        if not isinstance(output, list):
-            return None
-        texts = []
-        for item in output:
-            if not isinstance(item, dict) or item.get("type") != "message":
-                continue
-            content = item.get("content")
-            if not isinstance(content, list):
-                return None
-            for part in content:
-                if not isinstance(part, dict) or part.get("type") != "output_text":
-                    return None
-                texts.append(part.get("text"))
-        if len(texts) != 1 or not isinstance(texts[0], str):
-            return None
-        data = json.loads(texts[0])
+        data = json.loads(final_output(response.json()))
         if (
             not isinstance(data, dict)
             or set(data) != {"matter_number", "document_type", "needs_clarification"}

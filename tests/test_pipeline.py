@@ -248,3 +248,16 @@ async def test_export_prompt_precedes_transcript_and_recording_download(
     assert result.downloaded_count == 1
     assert manifest["files"][0]["original_filename"] == filename
     assert "," not in manifest["files"][0]["filename"]
+
+
+async def test_changed_header_field_order_is_not_silently_mislabelled(
+    fixture_url: str, tmp_path: Path
+) -> None:
+    result = await download_matter(
+        DownloadRequest("M12205", DocumentType.KEY_DOCUMENTS, 1),
+        tmp_path,
+        base_url=fixture_url + "?case=headerorder",
+    )
+    assert result.status == "failed"
+    assert "layout" in result.error
+    assert result.downloaded_count == 0

@@ -136,6 +136,33 @@ async def test_health_checks_use_paths_available_through_cloud_run(store: JobSto
         assert (await client.get("/ready")).json() == {"status": "ready"}
 
 
+@pytest.mark.parametrize("spf,expected", [("pass", "queued"), ("fail", "ignored")])
+async def test_public_agent_accepts_authenticated_senders_and_rejects_spoofing(
+    store: JobStore, spf: str, expected: str
+) -> None:
+    body, headers, public = signed_email("Key Documents M12205", spf=spf)
+    config = WebSettings(TEST_DATABASE, "agent@example.com", frozenset({"*"}), public)
+    app = create_app(config, store)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        response = await client.post("/webhooks/sendgrid/inbound", content=body, headers=headers)
+        assert response.status_code == 200
+        assert response.json()["status"] == expected
+
+
+def test_public_agent_configuration_accepts_wildcard(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key, value in {
+        "DATABASE_URL": TEST_DATABASE,
+        "AGENT_EMAIL": "agent@example.com",
+        "ALLOWED_SENDERS": "*",
+        "SENDGRID_INBOUND_PUBLIC_KEY": "test-key",
+    }.items():
+        monkeypatch.setenv(key, value)
+    assert WebSettings.from_env().allowed_senders == frozenset({"*"})
+
+
 @pytest.mark.parametrize("scenario", ["normal", "large"])
 async def test_signed_email_to_real_download_and_reply(
     store: JobStore,

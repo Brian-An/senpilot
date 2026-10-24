@@ -37,8 +37,8 @@ Keep the generated sending/return-path records separate from the receiving hostn
 
 Create a Mail Send API key and place it in the worker's `SENDGRID_API_KEY` setting.
 The sender address is `agent@requests.brianan.ca`.
-Configure `ALLOWED_SENDERS` with the exact comma-separated email addresses allowed to request filings during testing.
-Requests from other addresses are acknowledged and ignored.
+Set `ALLOWED_SENDERS=*` to accept requests from any authenticated email address.
+For private testing, use exact comma-separated addresses instead; requests from other addresses are then acknowledged and ignored.
 
 ## 3. Configure Cloudflare DNS and incoming email
 
@@ -71,7 +71,7 @@ The public key is required for web-service startup.
 Use a Google Cloud project with billing enabled, the authenticated Google Cloud CLI, Docker with Buildx, and `uv`.
 The configured project for this setup is `senpilot-brianan`.
 Copy `.env.example` to the ignored `.env` file and fill in the Supabase and SendGrid values.
-Use exact addresses for `ALLOWED_SENDERS` so only those people can start downloads.
+The deployed agent uses `ALLOWED_SENDERS=*` as requested.
 Leave `SENPILOT_CLOUD_RUN_JOB` and `DISPATCH_TOKEN` blank locally unless deliberately overriding the deployment defaults.
 
 ```sh
@@ -127,7 +127,7 @@ Prepared ZIPs survive worker restarts in private Supabase Storage.
 
 ## 5. Test the live address
 
-Send an email from an allowed address to `agent@requests.brianan.ca`:
+Send an email to `agent@requests.brianan.ca`:
 
 ```text
 Subject: Filing request
@@ -149,7 +149,7 @@ Category counts describe memberships, including overlap between Key Documents an
 The webhook saves a request in PostgreSQL before asking Cloud Run to start the worker.
 If dispatch fails, it returns HTTP 503 and retains the request for provider retry or the scheduled recovery check.
 Duplicate emails are deduplicated by sender and Message-ID.
-The canonical From address must be allowlisted and authenticate through an aligned provider-reported SPF or DKIM pass.
+The canonical From address must authenticate through an aligned provider-reported SPF or DKIM pass and satisfy any configured sender restriction.
 Automatic replies, mailing-list traffic, and requests to a different recipient are ignored.
 Incoming webhook bodies are limited to 1 MiB because requests do not require attachments.
 

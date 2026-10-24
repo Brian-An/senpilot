@@ -47,7 +47,12 @@ class WebSettings:
 
     @classmethod
     def from_env(cls) -> "WebSettings":
-        senders = frozenset(address(v.strip()) for v in required("ALLOWED_SENDERS").split(","))
+        allowed = required("ALLOWED_SENDERS")
+        senders = (
+            frozenset({"*"})
+            if allowed == "*"
+            else frozenset(address(v.strip()) for v in allowed.split(","))
+        )
         return cls(
             required("DATABASE_URL"),
             address(required("AGENT_EMAIL")),

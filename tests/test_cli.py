@@ -71,4 +71,5 @@ def test_cli_partial_result_exits_nonzero(
     result = json.loads(capsys.readouterr().out)
     assert status == 1
     assert result["status"] == "partial"
+    assert "HTML" in result["error"]
     assert Path(result["zip_path"]).exists()

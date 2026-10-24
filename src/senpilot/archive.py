@@ -5,8 +5,6 @@ import re
 import zipfile
 from pathlib import Path
 
-MAX_FILE_BYTES = 200 * 1024 * 1024
-
 
 def safe_filename(source_id: str, suggested_name: str) -> str:
     prefix = re.sub(r"[^A-Za-z0-9_.()-]", "_", source_id)[:48].strip(".") or "document"
@@ -23,8 +21,6 @@ def validate_file(path: Path, expected_extension: str) -> tuple[int, str]:
     size = path.stat().st_size
     if size == 0:
         raise ValueError("download is empty")
-    if size > MAX_FILE_BYTES:
-        raise ValueError("download exceeds the 200 MiB file limit")
     digest = hashlib.sha256()
     with path.open("rb") as source:
         header = source.read(1024)

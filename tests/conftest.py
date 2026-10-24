@@ -105,22 +105,27 @@ function downloadDialog(index,category) {
     const dialog = document.createElement('div'); dialog.setAttribute('role','dialog');
     dialog.setAttribute('aria-label','Export Field to File');
     dialog.className = 'v-window';
-    const filename = category === 'Recordings' ? 'hearing.mp3' : 'transcript.pdf';
+    const filename = category === 'Recordings' ? 'hearing.mp3' : 'transcript, session.pdf';
     dialog.innerHTML = 'Specify a filename to export. Save As:' +
       `<input type="text" value="${filename}">` +
-      `<button onclick="this.parentElement.remove();showDownloadDialog(${index},'${category}')">
+      `<button onclick="finishExport(this.parentElement,${index},'${category}')">
         OK</button><button onclick="this.parentElement.remove()">Cancel</button>`;
     document.body.append(dialog); return;
   }
   showDownloadDialog(index,category);
 }
-function showDownloadDialog(index,category) {
+function finishExport(dialog,index,category) {
+  const name = dialog.querySelector('input').value;
+  dialog.remove(); showDownloadDialog(index,category,name);
+}
+function showDownloadDialog(index,category,exportName=null) {
   const dialog = document.createElement('div'); dialog.className = 'v-window';
   dialog.setAttribute('role','dialog'); dialog.setAttribute('aria-label','Download Files');
   let filenames = [['duplicate','idcollision'].includes(scenario)
     ? 'same.pdf' : `${100000+index}.pdf`];
   if (category === 'Recordings') filenames = ['hearing.mp3'];
   if (category === 'Transcripts') filenames = ['transcript.pdf'];
+  if (exportName) filenames = [exportName];
   if (scenario === 'multiple') filenames = [`${index}-a.pdf`, `${index}-b.pdf`];
   dialog.innerHTML = 'Your files are ready for download. '
     + 'Please click the button to download each file:'
@@ -156,7 +161,10 @@ class FixtureHandler(BaseHTTPRequestHandler):
                 content = b"ID3\x04\x00\x00hearing recording"
             self.send_response(200)
             self.send_header("Content-Type", "application/octet-stream")
-            self.send_header("Content-Disposition", f'attachment; filename="{name}"')
+            disposition = f'attachment; filename="{name}"'
+            if scenario == "export":
+                disposition = f"attachment; filename={name}"
+            self.send_header("Content-Disposition", disposition)
             self.send_header("Content-Length", str(len(content)))
             self.end_headers()
             self.wfile.write(content)

@@ -100,6 +100,8 @@ async def download_matter(
         status = ResultStatus.EMPTY
     else:
         status = ResultStatus.COMPLETE
+    if error is None and failures:
+        error = f"{len(failures)} source entry/file failure(s): {failures[0].error}"
     metadata = asdict(matter) if matter else None
     if metadata is not None and matter is not None:
         # Category totals count memberships; Key Documents also appears in Other Documents.

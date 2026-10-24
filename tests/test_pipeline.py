@@ -229,7 +229,7 @@ async def test_blocked_dialog_preserves_verified_files_and_stops_navigation(
 @pytest.mark.parametrize(
     "category,filename",
     [
-        (DocumentType.TRANSCRIPTS, "transcript.pdf"),
+        (DocumentType.TRANSCRIPTS, "transcript, session.pdf"),
         (DocumentType.RECORDINGS, "hearing.mp3"),
     ],
 )
@@ -241,8 +241,10 @@ async def test_export_prompt_precedes_transcript_and_recording_download(
         tmp_path,
         base_url=f"{fixture_url}?case=export",
         timeout_ms=1000,
+        download_timeout_ms=1000,
     )
     assert result.status == "complete"
     manifest = json.loads(result.manifest_path.read_text())
     assert result.downloaded_count == 1
     assert manifest["files"][0]["original_filename"] == filename
+    assert "," not in manifest["files"][0]["filename"]

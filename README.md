@@ -68,7 +68,8 @@ The source can associate identical file contents with different document entries
 ## Selection and failures
 
 Documents are selected in the website's displayed order, including rows reached by scrolling its virtualized list.
-Transcripts and Recordings receive an additional export confirmation, which preserves the source's proposed filename.
+Transcripts and Recordings receive an additional export confirmation.
+The manifest preserves the proposed source filename, and commas in the export filename become underscores because the source's unquoted download header is rejected by Chromium when it contains commas.
 The pipeline examines at most `--limit` source entries and downloads at most `--limit` files.
 When an entry has several attached files, the remaining file limit applies to those attachments.
 Confidential entries are recorded as unavailable without requesting their files.
@@ -76,7 +77,8 @@ Failed or inaccessible entries are reported rather than silently replaced by lat
 
 Each downloaded file must finish within the completion timeout, be nonempty, and pass the format checks.
 The current checks reject HTML responses masquerading as files and require a PDF signature for PDFs.
-Files larger than 200 MiB are rejected after transfer.
+Large recordings are supported, with hashing and ZIP creation streaming from disk.
+The output directory needs space for both the downloaded files and their ZIP.
 These checks detect common download failures; they do not constitute full document-format validation or malware scanning.
 The final ZIP is checked for CRC integrity.
 

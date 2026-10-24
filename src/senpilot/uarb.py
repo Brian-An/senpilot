@@ -198,6 +198,7 @@ class UarbSite:
         files: list[DownloadedFile] = []
         failures: list[DownloadFailure] = []
         navigation_error: str | None = None
+        source_export_name: str | None = None
         if document.security and document.security.lower() != "public":
             return DocumentDownload(
                 [],
@@ -213,7 +214,12 @@ class UarbSite:
             await self._row(document).get_by_role("button", name="GO GET IT", exact=True).click()
             await self.page.get_by_role("dialog").last.wait_for(state="visible")
             if await export_dialog.is_visible():
-                # Transcripts and recordings retain the source's proposed export filename.
+                filename_field = export_dialog.get_by_role("textbox")
+                source_export_name = await filename_field.input_value()
+                if "," in source_export_name:
+                    # FileMaker's unquoted response header requires comma-free export filenames.
+                    await filename_field.fill(source_export_name.replace(",", "_"))
+                    await filename_field.press("Tab")
                 await export_dialog.get_by_role("button", name="OK", exact=True).click()
             await dialog.wait_for(state="visible")
             buttons = dialog.locator(".fm-download-button")
@@ -240,7 +246,10 @@ class UarbSite:
                         download.save_as(path), timeout=self.download_timeout_ms / 1000
                     )
                     size, digest = validate_file(path, document.extension or path.suffix)
-                    files.append(DownloadedFile(document, original, path.name, size, digest))
+                    original_name = (
+                        source_export_name if total == 1 and source_export_name else original
+                    )
+                    files.append(DownloadedFile(document, original_name, path.name, size, digest))
                     logger.info("Downloaded %s (%s bytes)", path.name, size)
                 except (BrowserError, TimeoutError, ValueError, OSError) as exc:
                     if download is not None:

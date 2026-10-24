@@ -39,6 +39,17 @@ def test_validates_pdf_and_hash(tmp_path: Path) -> None:
     assert digest == hashlib.sha256(content).hexdigest()
 
 
+def test_validates_large_recordings_without_an_arbitrary_size_cap(tmp_path: Path) -> None:
+    path = tmp_path / "hearing.mp3"
+    size = 201 * 1024 * 1024
+    with path.open("wb") as recording:
+        recording.write(b"ID3\x04\x00\x00public hearing")
+        recording.truncate(size)
+    with path.open("rb") as recording:
+        expected = hashlib.file_digest(recording, "sha256").hexdigest()
+    assert validate_file(path, ".mp3") == (size, expected)
+
+
 @pytest.mark.parametrize("content", [b"", b"<html>Server error</html>", b"not a PDF"])
 def test_rejects_invalid_pdf_download(tmp_path: Path, content: bytes) -> None:
     path = tmp_path / "evidence.pdf"

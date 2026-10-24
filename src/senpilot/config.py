@@ -74,6 +74,12 @@ class WorkerSettings:
     s3_secret_key: str = field(repr=False)
     bucket: str = "senpilot-filings"
     sendgrid_api_base: str = "https://api.sendgrid.com"
+    openai_api_key: str = field(default="", repr=False)
+    openai_model: str = "gpt-5.6-terra"
+
+    def __post_init__(self) -> None:
+        if self.openai_api_key and not self.openai_model.strip():
+            raise ValueError("OPENAI_MODEL is required when OPENAI_API_KEY is configured")
 
     @classmethod
     def from_env(cls) -> "WorkerSettings":
@@ -87,4 +93,6 @@ class WorkerSettings:
             required("SUPABASE_S3_SECRET_ACCESS_KEY"),
             os.environ.get("SUPABASE_STORAGE_BUCKET", "senpilot-filings"),
             os.environ.get("SENDGRID_API_BASE", "https://api.sendgrid.com"),
+            os.environ.get("OPENAI_API_KEY", "").strip(),
+            os.environ.get("OPENAI_MODEL", "gpt-5.6-terra").strip(),
         )

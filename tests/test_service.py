@@ -25,6 +25,83 @@ from tests.service_fixtures import TEST_DATABASE
 from tests.test_jobs import incoming
 
 
+@pytest.mark.parametrize("mode", ["ai", "rules", "ambiguous", "mixed", "unavailable"])
+async def test_hybrid_extraction_from_signed_email_to_download_or_clarification(
+    store: JobStore,
+    artifacts: ArtifactStore,
+    worker_settings: WorkerSettings,
+    sender: "OutboundServer",
+    fixture_url: str,
+    mode: str,
+) -> None:
+    text = {
+        "ai": "Please grab the key docs for matter 12205",
+        "rules": "Please send Key Documents for M12205",
+        "ambiguous": "Please get hearing records for matter 12205",
+        "mixed": "Please send Exhibits and hearing audio for M12205",
+        "unavailable": "Please grab the key docs for matter 12205",
+    }[mode]
+    body, headers, public = signed_email(text)
+    app = create_app(
+        WebSettings(TEST_DATABASE, "agent@example.com", frozenset({"*"}), public), store
+    )
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as api,
+    ):
+        response = await api.post("/webhooks/sendgrid/inbound", content=body, headers=headers)
+        assert response.status_code == 200
+        assert (
+            await api.post("/webhooks/sendgrid/inbound", content=body, headers=headers)
+        ).json() == response.json()
+
+    ai_calls = []
+    settings = replace(
+        worker_settings,
+        openai_api_key="private-test-key",
+        sendgrid_api_base=f"http://127.0.0.1:{sender.server_port}",
+    )
+    async with httpx.AsyncClient() as outbound:
+
+        async def handle(request: httpx.Request) -> httpx.Response:
+            if request.url.host != "api.openai.com":
+                return await outbound.send(request)
+            ai_calls.append(request)
+            if mode == "rules":
+                pytest.fail("an exact request must bypass AI")
+            if mode == "unavailable":
+                return httpx.Response(503)
+            from tests.test_extraction import response as ai_response
+
+            return httpx.Response(
+                200,
+                json=ai_response(
+                    {
+                        "matter_number": "M12205",
+                        "document_type": "Key Documents" if mode == "ai" else None,
+                        "needs_clarification": mode in {"ambiguous", "mixed"},
+                    }
+                ),
+            )
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+            worker = Worker(settings, store, artifacts, client, download_base_url=fixture_url)
+            assert await worker.run_once()
+            assert not await worker.run_once()
+    assert len(ai_calls) == (0 if mode == "rules" else 1)
+    assert len(sender.received) == 1
+    message = sender.received[0]
+    assert message["personalizations"][0]["to"] == [{"email": "tester@example.com"}]
+    if mode in {"ai", "rules"}:
+        assert "Key Documents" in message["content"][0]["value"]
+        content = base64.b64decode(message["attachments"][0]["content"])
+        with zipfile.ZipFile(BytesIO(content)) as archive:
+            assert len(archive.namelist()) == 2
+    else:
+        assert "Please reply" in message["content"][0]["value"]
+        assert not message.get("attachments")
+
+
 class OutboundServer(ThreadingHTTPServer):
     received: list[dict[str, object]]
     status: int = 202

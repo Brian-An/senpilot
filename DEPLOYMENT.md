@@ -94,6 +94,9 @@ Separate executions can overlap; PostgreSQL leases ensure they cannot claim the 
 The script grants the API permission to invoke only the downloader job.
 It grants each service account access to only its required secrets.
 The worker holds email-sending and S3 credentials, while the API holds the queue connection and recovery token.
+Set `OPENAI_API_KEY` in the ignored `.env` to enable AI extraction in the worker.
+The deployment stores this key in Secret Manager and grants access only to the worker service account.
+`OPENAI_MODEL` defaults to `gpt-5.6-terra` and can select another Responses API model supporting structured outputs and low reasoning effort.
 Secret values travel through stdin or private temporary flag files, not command arguments.
 The script reuses the stored recovery token on later deployments and creates new secret versions for supplied credentials.
 
@@ -153,6 +156,15 @@ The canonical From address must authenticate through an aligned provider-reporte
 Automatic replies, mailing-list traffic, and requests to a different recipient are ignored.
 Incoming webhook bodies are limited to 1 MiB because requests do not require attachments.
 
+Exact matter numbers and document categories are parsed with rules.
+Unresolved requests retain their subject and cleaned plain text in the private job record for worker-side AI extraction after deduplication.
+The AI receives this request text without sender addresses, mail headers, attachments, or stripped quoted history.
+It uses OpenAI's Responses API with a strict JSON schema, no tools, and `store=false`.
+Provider abuse-monitoring retention can still apply; `store=false` disables stored Responses state rather than guaranteeing zero retention.
+Only one matter number grounded in the request and one supported category can proceed to the downloader, with the existing ten-file limit.
+Ambiguous requests, missing credentials, refusals, invalid output, and API failures receive the standard clarification reply without a download.
+Clarification replies must include the full matter number and document category; conversation history is not used to fill missing fields.
+
 Workers claim jobs atomically and renew a five-minute lease while processing.
 Pre-delivery failures receive up to three attempts.
 Prepared replies retain their text and private ZIP so recovery does not repeat the download.
@@ -193,6 +205,7 @@ docker build -t senpilot:local .
 
 The tests use isolated local PostgreSQL, an HTTP S3-compatible test server, real Chromium downloads, and a local SendGrid API receiver.
 They do not send real email or modify a live Supabase project.
+AI tests use a controlled HTTP transport rather than spending API credits.
 `SENPILOT_TEST_DATABASE_URL` can point to the isolated test container on a Docker network.
 The fixture refuses to truncate databases outside the local `senpilot_test` database.
 
@@ -223,3 +236,5 @@ SendGrid needs a publicly reachable HTTPS destination; localhost alone is not a 
 - [Cloud Run container filesystem](https://cloud.google.com/run/docs/container-contract#filesystem)
 - [Cloud Scheduler pricing](https://cloud.google.com/scheduler/pricing)
 - [Google Cloud budgets](https://cloud.google.com/billing/docs/how-to/budgets)
+- [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
+- [OpenAI API data controls](https://developers.openai.com/api/docs/guides/your-data)

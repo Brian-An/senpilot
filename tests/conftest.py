@@ -1,9 +1,12 @@
+import os
 import threading
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+
+pytest_plugins = ["tests.service_fixtures"]
 
 PDF = b"%PDF-1.7\npublic regulatory evidence\n%%EOF\n"
 
@@ -30,6 +33,7 @@ const scenario = new URLSearchParams(location.search).get('case') || 'normal';
 const counts = {'Exhibits':3, 'Key Documents':2, 'Other Documents':12,
                 'Transcripts':0, 'Recordings':1};
 if (scenario === 'export') counts['Transcripts'] = 2;
+if (scenario === 'large') counts['Other Documents'] = 1;
 let committed = '';
 const editor = document.querySelector('.text');
 document.querySelector('.search-box').onclick = function () {
@@ -155,6 +159,8 @@ class FixtureHandler(BaseHTTPRequestHandler):
             index = int(query.get("index", ["0"])[0])
             name = query["name"][0]
             content = PDF + str(index).encode()
+            if scenario == "large":
+                content = PDF + os.urandom(19_000_000)
             if scenario == "partial" and index == 1:
                 content = b"<!doctype html><html>Session expired</html>"
             if name.endswith(".mp3"):

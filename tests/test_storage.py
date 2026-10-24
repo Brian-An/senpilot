@@ -1,49 +1,12 @@
 import hashlib
-from collections.abc import Iterator
 from pathlib import Path
 
 import boto3
 import pytest
 from botocore.exceptions import ClientError
-from moto.server import ThreadedMotoServer
 
 from senpilot.config import WorkerSettings
 from senpilot.storage import ArtifactStore
-
-
-@pytest.fixture(scope="session")
-def s3_endpoint() -> Iterator[str]:
-    server = ThreadedMotoServer(ip_address="127.0.0.1", port=0, verbose=False)
-    server.start()
-    host, port = server.get_host_and_port()
-    yield f"http://{host}:{port}"
-    server.stop()
-
-
-@pytest.fixture
-def worker_settings(s3_endpoint: str) -> WorkerSettings:
-    return WorkerSettings(
-        "postgresql://postgres:senpilot-test@127.0.0.1:55432/senpilot_test",
-        "agent@example.com",
-        "test-api-key",
-        s3_endpoint,
-        "us-east-1",
-        "test-access-key",
-        "test-secret-key",
-    )
-
-
-@pytest.fixture
-def artifacts(worker_settings: WorkerSettings) -> ArtifactStore:
-    client = boto3.client(
-        "s3",
-        endpoint_url=worker_settings.s3_endpoint,
-        region_name="us-east-1",
-        aws_access_key_id="test-access-key",
-        aws_secret_access_key="test-secret-key",
-    )
-    client.create_bucket(Bucket=worker_settings.bucket)
-    return ArtifactStore(worker_settings)
 
 
 async def test_private_multipart_upload_and_verified_download(

@@ -5,19 +5,9 @@ import psycopg
 import pytest
 
 from senpilot.inbound import IncomingEmail
-from senpilot.jobs import JobStore, LeaseLost, migrate
+from senpilot.jobs import JobStore, LeaseLost
 from senpilot.models import DocumentType, DownloadRequest
-
-TEST_DATABASE = "postgresql://postgres:senpilot-test@127.0.0.1:55432/senpilot_test"
-
-
-@pytest.fixture
-async def store():
-    await migrate(TEST_DATABASE)
-    async with await psycopg.AsyncConnection.connect(TEST_DATABASE, autocommit=True) as connection:
-        await connection.execute("TRUNCATE senpilot_private.jobs")
-    async with JobStore(TEST_DATABASE) as jobs:
-        yield jobs
+from tests.service_fixtures import TEST_DATABASE
 
 
 def incoming(identifier: str = "request") -> IncomingEmail:

@@ -34,6 +34,7 @@ class Job:
 async def migrate(database_url: str) -> None:
     sql = files("senpilot").joinpath("schema.sql").read_text()
     async with await psycopg.AsyncConnection.connect(database_url) as connection:
+        await connection.execute("SELECT pg_advisory_xact_lock(hashtext('senpilot-schema'))")
         await connection.execute(sql)
 
 
@@ -144,6 +145,17 @@ class JobStore:
             (body, artifact_key, filename, Jsonb(manifest)),
         )
 
+    async def record_artifact(self, job: Job, key: str) -> None:
+        await self._owned(
+            """INSERT INTO senpilot_private.artifacts (object_key,job_id)
+               SELECT %s,id FROM senpilot_private.jobs WHERE id=%s AND owner=%s
+               AND state='processing' AND lease_until>now()
+               ON CONFLICT(object_key) DO UPDATE SET object_key=EXCLUDED.object_key
+               RETURNING job_id""",
+            job,
+            (key,),
+        )
+
     async def begin_send(self, job: Job) -> None:
         await self._owned(
             """UPDATE senpilot_private.jobs SET state='sending',updated_at=now()
@@ -180,6 +192,17 @@ class JobStore:
             (reason,),
         )
 
+    async def rejected(self, job: Job, reason: str, *, retryable: bool = False) -> None:
+        await self._owned(
+            """UPDATE senpilot_private.jobs SET
+               state=CASE WHEN %s AND attempts<3 THEN 'queued' ELSE 'failed' END,
+               last_error=%s,owner=NULL,lease_until=NULL,
+               available_at=now()+interval '30 seconds',updated_at=now()
+               WHERE id=%s AND owner=%s AND state='sending' RETURNING id""",
+            job,
+            (retryable, reason),
+        )
+
     async def state(self, job_id: UUID) -> str | None:
         row = await self._one("SELECT state FROM senpilot_private.jobs WHERE id=%s", (job_id,))
         return str(row["state"]) if row else None
@@ -191,14 +214,21 @@ class JobStore:
     async def expired_artifacts(self) -> list[tuple[UUID, str]]:
         async with self.pool.connection() as connection:
             cursor = await connection.execute(
-                """SELECT id,artifact_key FROM senpilot_private.jobs
-                   WHERE state IN ('sent','failed','uncertain') AND artifact_key IS NOT NULL
-                   AND updated_at<now()-interval '7 days' LIMIT 100"""
+                """SELECT j.id,a.object_key FROM senpilot_private.artifacts a
+                   JOIN senpilot_private.jobs j ON j.id=a.job_id
+                   WHERE j.state IN ('sent','failed','uncertain')
+                   AND j.updated_at<now()-interval '7 days' LIMIT 100"""
             )
-            return [(cast(UUID, r["id"]), str(r["artifact_key"])) for r in await cursor.fetchall()]
+            return [(cast(UUID, r["id"]), str(r["object_key"])) for r in await cursor.fetchall()]
 
-    async def artifact_deleted(self, job_id: UUID) -> None:
-        await self._one(
-            "UPDATE senpilot_private.jobs SET artifact_key=NULL WHERE id=%s RETURNING id",
-            (job_id,),
-        )
+    async def artifact_deleted(self, job_id: UUID, key: str) -> None:
+        async with self.pool.connection() as connection, connection.transaction():
+            await connection.execute(
+                "DELETE FROM senpilot_private.artifacts WHERE job_id=%s AND object_key=%s",
+                (job_id, key),
+            )
+            await connection.execute(
+                """UPDATE senpilot_private.jobs SET artifact_key=NULL
+                   WHERE id=%s AND artifact_key=%s""",
+                (job_id, key),
+            )

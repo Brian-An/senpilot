@@ -6,6 +6,13 @@ import pytest
 from senpilot import cli
 
 
+@pytest.mark.parametrize("command", ["worker", "migrate"])
+def test_service_commands_have_help_without_loading_credentials(command: str) -> None:
+    with pytest.raises(SystemExit) as result:
+        cli.main([command, "--help"])
+    assert result.value.code == 0
+
+
 def test_cli_downloads_and_reports_usable_output_paths(
     fixture_url: str,
     tmp_path: Path,

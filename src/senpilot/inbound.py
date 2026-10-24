@@ -66,13 +66,25 @@ def parse_sendgrid(
     )
     if not form.is_multipart():
         raise ValueError("invalid multipart payload")
-    fields: dict[str, str] = {}
+    raw_fields: dict[str, bytes] = {}
     for part in form.iter_parts():
         name = part.get_param("name", header="content-disposition")
         if isinstance(name, str) and part.get_filename() is None:
             data = part.get_payload(decode=True)
             if isinstance(data, bytes):
-                fields[name] = data.decode("utf-8")
+                raw_fields[name] = data
+    charsets = json.loads(raw_fields.get("charsets", b"{}").decode("utf-8"))
+    if not isinstance(charsets, dict):
+        raise ValueError("invalid charset metadata")
+    fields: dict[str, str] = {}
+    for name, data in raw_fields.items():
+        charset = charsets.get(name, "utf-8")
+        if not isinstance(charset, str):
+            raise ValueError("invalid field charset")
+        try:
+            fields[name] = data.decode(charset)
+        except LookupError as exc:
+            raise ValueError("unsupported field charset") from exc
     envelope = json.loads(fields.get("envelope", "{}"))
     if not isinstance(envelope, dict) or not isinstance(envelope.get("to"), list):
         raise ValueError("invalid email envelope")
@@ -80,8 +92,32 @@ def parse_sendgrid(
     if agent_email not in recipients:
         return None
     headers = Parser(policy=policy.default).parsestr(fields.get("headers", ""))
+    if len(headers.get_all("From", [])) != 1:
+        raise ValueError("one From header is required")
+    sender = address(str(headers["From"]))
+    envelope_sender = address(str(envelope.get("from", "")))
+    sender_domain = sender.rsplit("@", 1)[1]
+    envelope_domain = envelope_sender.rsplit("@", 1)[1]
+
+    def aligned(domain: str) -> bool:
+        return (
+            domain == sender_domain
+            or domain.endswith("." + sender_domain)
+            or sender_domain.endswith("." + domain)
+        )
+
+    spf = fields.get("SPF", "").strip().lower() == "pass" and aligned(envelope_domain)
+    # SendGrid's DKIM result uses a domain/status map that can omit JSON quotes.
+    dkim = False
+    for entry in fields.get("dkim", "{}").strip("{}").split(","):
+        domain, separator, result = entry.partition(":")
+        domain = domain.strip(" \"'@").lower()
+        if separator and result.strip(" \"'").lower() == "pass" and domain and aligned(domain):
+            dkim = True
+    if not (spf or dkim):
+        return None
     canonical: dict[str, object] = {
-        "sender": envelope.get("from", ""),
+        "sender": sender,
         "recipient": agent_email,
         "subject": fields.get("subject", ""),
         "body-plain": fields.get("text", ""),

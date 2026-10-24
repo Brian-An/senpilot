@@ -25,6 +25,9 @@ def positive_seconds(value: str) -> float:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Download public regulatory filings into a ZIP.")
     subcommands = parser.add_subparsers(dest="command", required=True)
+    subcommands.add_parser("migrate", help="Initialize the private PostgreSQL job schema")
+    worker = subcommands.add_parser("worker", help="Process queued email requests")
+    worker.add_argument("--once", action="store_true", help="Process at most one queued job")
     download = subcommands.add_parser("download", help="Download one matter's document category")
     download.add_argument("matter_number", help="Matter number, for example M12205")
     download.add_argument(
@@ -40,6 +43,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--download-timeout", type=positive_seconds, default=120.0, metavar="SECONDS"
     )
     args = parser.parse_args(argv)
+    if args.command in {"worker", "migrate"}:
+        from senpilot.config import required
+        from senpilot.jobs import migrate
+        from senpilot.worker import run_worker
+
+        logging.basicConfig(level=logging.INFO, format="%(message)s")
+        try:
+            operation = (
+                migrate(required("DATABASE_URL"))
+                if args.command == "migrate"
+                else run_worker(once=args.once)
+            )
+            asyncio.run(operation)
+        except ValueError as exc:
+            parser.error(str(exc))
+        except KeyboardInterrupt:
+            return 130
+        return 0
     try:
         request = DownloadRequest(args.matter_number, DocumentType(args.type), args.limit)
     except ValueError as exc:

@@ -25,3 +25,11 @@ ALTER TABLE senpilot_private.jobs ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE senpilot_private.jobs FROM PUBLIC;
 CREATE INDEX IF NOT EXISTS jobs_claim_idx
     ON senpilot_private.jobs (state, available_at, created_at);
+
+CREATE TABLE IF NOT EXISTS senpilot_private.artifacts (
+    object_key text PRIMARY KEY,
+    job_id uuid NOT NULL REFERENCES senpilot_private.jobs(id) ON DELETE CASCADE,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE senpilot_private.artifacts ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE senpilot_private.artifacts FROM PUBLIC;

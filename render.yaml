@@ -1,0 +1,53 @@
+envVarGroups:
+  - name: senpilot-shared
+    envVars:
+      - key: AGENT_EMAIL
+        value: agent@requests.brianan.ca
+
+services:
+  - type: web
+    name: senpilot-api
+    runtime: docker
+    plan: starter
+    region: ohio
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    preDeployCommand: uv run --no-sync senpilot migrate
+    healthCheckPath: /readyz
+    envVars:
+      - fromGroup: senpilot-shared
+      - key: DATABASE_URL
+        sync: false
+      - key: ALLOWED_SENDERS
+        sync: false
+      - key: SENDGRID_INBOUND_PUBLIC_KEY
+        sync: false
+
+  - type: worker
+    name: senpilot-worker
+    runtime: docker
+    plan: standard
+    region: ohio
+    numInstances: 1
+    dockerfilePath: ./Dockerfile
+    dockerCommand: uv run --no-sync senpilot worker
+    preDeployCommand: uv run --no-sync senpilot migrate
+    envVars:
+      - fromGroup: senpilot-shared
+      - key: DATABASE_URL
+        fromService:
+          type: web
+          name: senpilot-api
+          envVarKey: DATABASE_URL
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: SUPABASE_S3_ENDPOINT
+        sync: false
+      - key: SUPABASE_REGION
+        sync: false
+      - key: SUPABASE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: SUPABASE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: SUPABASE_STORAGE_BUCKET
+        value: senpilot-filings

@@ -21,6 +21,7 @@ from senpilot.jobs import JobStore
 from senpilot.storage import ArtifactStore
 from senpilot.web import create_app
 from senpilot.worker import Worker, run_worker
+from tests.service_fixtures import TEST_DATABASE
 from tests.test_jobs import incoming
 
 
@@ -125,6 +126,15 @@ def signed_email(
     )
 
 
+async def test_health_checks_use_paths_available_through_cloud_run(store: JobStore) -> None:
+    app = create_app(WebSettings(TEST_DATABASE, "agent@example.com", frozenset(), "unused"), store)
+    async with app.router.lifespan_context(app), httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        assert (await client.get("/health")).json() == {"status": "ok"}
+        assert (await client.get("/ready")).json() == {"status": "ready"}
+
+
 @pytest.mark.parametrize("scenario", ["normal", "large"])
 async def test_signed_email_to_real_download_and_reply(
     store: JobStore,
@@ -143,7 +153,7 @@ async def test_signed_email_to_real_download_and_reply(
         app.router.lifespan_context(app),
         httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as api,
     ):
-        assert (await api.get("/readyz")).status_code == 200
+        assert (await api.get("/ready")).status_code == 200
         response = await api.post("/webhooks/sendgrid/inbound", content=body, headers=headers)
         assert response.status_code == 200
         assert (

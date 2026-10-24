@@ -39,11 +39,11 @@ def create_app(
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
-    @app.get("/healthz")
+    @app.get("/health")
     async def healthy() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/readyz")
+    @app.get("/ready")
     async def ready(request: Request) -> dict[str, str]:
         database = cast(JobStore, request.app.state.database)
         try:

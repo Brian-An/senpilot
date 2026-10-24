@@ -102,8 +102,8 @@ The endpoint starts a worker only when queued requests are due, a lease has expi
 An empty check does not start a Cloud Run Job, avoiding its minimum execution charge.
 Keep Scheduler configuration and its header restricted to project administrators.
 
-The API's startup probe is `/readyz`, which verifies the job table is reachable.
-`/healthz` checks the HTTP process alone.
+The API's startup probe is `/ready`, which verifies the job table is reachable.
+`/health` checks the HTTP process alone.
 After deployment, verify both endpoints return HTTP 200 and configure the printed webhook URL in SendGrid.
 
 Cloud Run's free allowances can cover a small demonstration, but the complete setup is not guaranteed to cost zero.

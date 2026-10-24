@@ -222,7 +222,7 @@ def main(argv: list[str] | None = None) -> None:
             "--cpu-throttling": True,
             "--no-cpu-boost": True,
             "--startup-probe": {
-                "httpGet.path": "/readyz",
+                "httpGet.path": "/ready",
                 "httpGet.port": 8080,
                 "periodSeconds": 10,
                 "timeoutSeconds": 5,

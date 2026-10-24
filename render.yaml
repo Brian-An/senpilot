@@ -13,7 +13,7 @@ services:
     numInstances: 1
     dockerfilePath: ./Dockerfile
     preDeployCommand: uv run --no-sync senpilot migrate
-    healthCheckPath: /readyz
+    healthCheckPath: /ready
     envVars:
       - fromGroup: senpilot-shared
       - key: DATABASE_URL

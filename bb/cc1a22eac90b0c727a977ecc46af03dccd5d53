@@ -1,0 +1,34 @@
+.dockerignore
+  s_0d037b12070813::t_1b9fb7caa7e224 1-11
+README.md
+  s_0d037b12070813::t_ed8cefec9dfc2a 117-119,124
+.env.example
+  s_0d037b12070813::t_ed8cefec9dfc2a 1-16
+DEPLOYMENT.md
+  s_0d037b12070813::t_ed8cefec9dfc2a 1-29,33-74,77-110,112-133,136-178
+  s_0d037b12070813::t_583af019438473 75-76,111
+  s_0d037b12070813::t_757640c91d92a1 134-135
+  s_0d037b12070813::t_877912db64dcb8 30-32
+Dockerfile
+  s_0d037b12070813::t_1b9fb7caa7e224 1-19
+.gitignore
+  s_0d037b12070813::t_1b9fb7caa7e224 8-10
+compose.test.yaml
+  s_0d037b12070813::t_1b9fb7caa7e224 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bbcc1a22eac90b0c727a977ecc46af03dccd5d53",
+  "prompts": {},
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

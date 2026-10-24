@@ -1,0 +1,29 @@
+DEPLOYMENT.md
+  s_0d037b12070813::t_bf9abb066a3254 105-106
+scripts/deploy_cloud_run.py
+  s_0d037b12070813::t_bf9abb066a3254 225
+src/senpilot/web.py
+  s_0d037b12070813::t_bf9abb066a3254 42,46
+tests/test_service.py
+  s_0d037b12070813::t_c184862dd84aaf 24
+  s_0d037b12070813::t_37f7ebcb1c4491 129-136
+  s_0d037b12070813::t_1a3e333db63622 137,156
+render.yaml
+  s_0d037b12070813::t_bf9abb066a3254 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dba9df5607243b17225757bdf9ce865b3e595057",
+  "prompts": {},
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

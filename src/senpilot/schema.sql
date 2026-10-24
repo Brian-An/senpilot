@@ -1,4 +1,10 @@
-CREATE SCHEMA IF NOT EXISTS senpilot_private;
+-- Existing schema owners can migrate without database-wide CREATE privileges.
+DO $$
+BEGIN
+    IF to_regnamespace('senpilot_private') IS NULL THEN
+        CREATE SCHEMA senpilot_private;
+    END IF;
+END $$;
 REVOKE ALL ON SCHEMA senpilot_private FROM PUBLIC;
 
 CREATE TABLE IF NOT EXISTS senpilot_private.jobs (

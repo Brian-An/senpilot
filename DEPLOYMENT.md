@@ -1,13 +1,13 @@
 # Deploy Senpilot
 
 The service receives email at `agent@requests.brianan.ca`, runs the existing downloader, and replies through Twilio SendGrid.
-Render hosts the webhook and worker, and Supabase provides PostgreSQL and private ZIP storage.
+Cloud Run hosts the webhook and an on-demand downloader job, and Supabase provides PostgreSQL and private ZIP storage.
 The address becomes live after the account configuration and DNS steps below are complete.
 
 ## 1. Create the Supabase resources
 
 Create a Supabase project in your preferred region.
-In its Connect dialog, copy the session-pooler PostgreSQL URL on port 5432, which supports IPv4 connections from Render.
+In its Connect dialog, copy the session-pooler PostgreSQL URL on port 5432, which supports IPv4 connections from Cloud Run.
 Use `sslmode=require` and URL-encode the database password if needed.
 This becomes `DATABASE_URL`.
 
@@ -22,7 +22,9 @@ The worker needs these keys, while the web service does not.
 
 The initialization command creates the `senpilot_private.jobs` schema and table.
 The schema is outside the default exposed API schemas, and the table has RLS enabled with no public policies.
-Use the database owner connection for the initialization command and the backend's queue operations.
+Use the database owner connection for initial schema creation.
+A dedicated `senpilot_backend` login can own only `senpilot_private` and its two tables, allowing queue operations and later migrations without database-wide creation privileges.
+This setup uses that dedicated login and leaves the project's main database password unchanged.
 
 ## 2. Configure SendGrid sending
 
@@ -35,8 +37,8 @@ Keep the generated sending/return-path records separate from the receiving hostn
 
 Create a Mail Send API key and place it in the worker's `SENDGRID_API_KEY` setting.
 The sender address is `agent@requests.brianan.ca`.
-Configure `ALLOWED_SENDERS` with the exact comma-separated email addresses allowed to request filings during testing.
-Requests from other addresses are acknowledged and ignored.
+Set `ALLOWED_SENDERS=*` to accept requests from any authenticated email address.
+For private testing, use exact comma-separated addresses instead; requests from other addresses are then acknowledged and ignored.
 
 ## 3. Configure Cloudflare DNS and incoming email
 
@@ -52,7 +54,7 @@ The website can continue using its existing root-domain records.
 If the receiving hostname already has mail-routing records, resolve that routing choice before adding another provider.
 
 In SendGrid, create an Inbound Parse configuration for `requests.brianan.ca`.
-Use `https://YOUR-RENDER-API.onrender.com/webhooks/sendgrid/inbound` as its destination.
+Use the deployed Cloud Run API URL followed by `/webhooks/sendgrid/inbound` as its destination.
 Turn off the raw-MIME payload option so the endpoint receives the parsed multipart form.
 
 Create an Inbound Parse **signature verification security policy** and attach it to that configuration.
@@ -61,25 +63,63 @@ Copy the policy's base64 DER public key into `SENDGRID_INBOUND_PUBLIC_KEY` on th
 Use the Inbound Parse policy's key, which can differ from a separate outbound Event Webhook key.
 The application verifies the signature against the exact raw multipart body before parsing any email fields.
 
-The public API URL and signing public key may be configured in two deployment passes: create the Render service to obtain its URL, then finish the Parse configuration and update its public key.
+Create the signature policy and copy its public key before deploying, then add the Parse destination after the deployment reports its URL.
 The public key is required for web-service startup.
 
-## 4. Deploy to Render
+## 4. Deploy to Google Cloud Run
 
-Push the reviewed `feature/email-service` branch to a GitHub repository you control.
-Create a Render Blueprint from that repository and select the branch containing `render.yaml`.
-Review the service plans and their current prices before creating paid services.
-The Blueprint chooses a Starter web service and a Standard worker to give Chromium and attachment processing adequate memory.
+Use a Google Cloud project with billing enabled, the authenticated Google Cloud CLI, Docker with Buildx, and `uv`.
+The configured project for this setup is `senpilot-brianan`.
+Copy `.env.example` to the ignored `.env` file and fill in the Supabase and SendGrid values.
+The deployed agent uses `ALLOWED_SENDERS=*` as requested.
+Leave `SENPILOT_CLOUD_RUN_JOB` and `DISPATCH_TOKEN` blank locally unless deliberately overriding the deployment defaults.
 
-Fill in the prompted settings from `.env.example` through Render's environment-variable controls.
-The Blueprint prompts for `DATABASE_URL` on the API service and references that value from the worker.
-Share `AGENT_EMAIL` through the `senpilot-shared` environment group.
-Keep email sending and S3 credentials on the worker.
-Both services run the idempotent schema initialization before deployment.
+```sh
+gcloud auth login
+uv run --env-file .env python scripts/deploy_cloud_run.py --project senpilot-brianan
+```
 
-Render's web health check is `/readyz`, which verifies the job table is reachable.
-`/healthz` checks the HTTP process alone.
-The background worker polls the queue every five seconds and handles one job at a time.
+The script validates configuration before creating resources, enables the required APIs, creates two dedicated service accounts, and stores runtime credentials in Secret Manager.
+It builds the Docker image locally for Linux amd64 and pushes it to a dedicated Artifact Registry repository.
+The deployment uses the current checkout; commit and review changes before running it.
+Docker's credential helper uses the authenticated Google CLI account for the push.
+No Cloud Build service or continuously running worker is required.
+
+The API has zero minimum instances, one maximum instance per revision, 512 MiB memory, and request-based CPU allocation.
+The worker is a Cloud Run Job with one task, one CPU, 4 GiB memory, and a one-hour timeout.
+It runs `senpilot worker --drain`, consumes available jobs, and exits when idle.
+Cloud Run task retries are disabled because PostgreSQL owns retry and uncertain-delivery decisions.
+Separate executions can overlap; PostgreSQL leases ensure they cannot claim the same request.
+
+The script grants the API permission to invoke only the downloader job.
+It grants each service account access to only its required secrets.
+The worker holds email-sending and S3 credentials, while the API holds the queue connection and recovery token.
+Secret values travel through stdin or private temporary flag files, not command arguments.
+The script reuses the stored recovery token on later deployments and creates new secret versions for supplied credentials.
+
+A Cloud Scheduler check calls `/internal/dispatch` every five minutes with the recovery token in its Authorization header.
+The endpoint starts a worker only when queued requests are due, a lease has expired, or old artifacts need deletion.
+An empty check does not start a Cloud Run Job, avoiding its minimum execution charge.
+Keep Scheduler configuration and its header restricted to project administrators.
+
+The API's startup probe is `/ready`, which verifies the job table is reachable.
+`/health` checks the HTTP process alone.
+After deployment, verify both endpoints return HTTP 200 and configure the printed webhook URL in SendGrid.
+
+Cloud Run's free allowances can cover a small demonstration, but the complete setup is not guaranteed to cost zero.
+Review current Cloud Run, Artifact Registry, Secret Manager, Scheduler, outbound network, Supabase, and SendGrid pricing.
+Container images occupy billable registry storage beyond its free allowance; remove obsolete images through an intentional retention policy.
+Each Cloud Run Job execution has a minimum billing period, even if it has little work.
+Budget alerts notify you but do not cap spending.
+
+The writable container filesystem uses instance memory.
+The downloader has handled a 326 MB recording, but Cloud Run memory use still needs measurement against the live workload.
+Several very large recordings plus their ZIP can exceed the worker's memory.
+Use `--worker-memory` to choose between 1 GiB and 4 GiB for the configured CPU; larger workloads require changing the CPU/memory configuration or scratch-storage strategy.
+An interrupted job remains in PostgreSQL for recovery, subject to the existing retry limit.
+Do not treat the maximum API instance count or a billing alert as a global spending cap for job executions.
+
+The existing `render.yaml` remains an optional alternative and is not used by the Cloud Run deployment.
 
 The Docker image includes Python, the locked Playwright dependency and matching Chromium, and runs as a non-root user.
 Temporary downloads are local to a job and are removed after processing.
@@ -87,7 +127,7 @@ Prepared ZIPs survive worker restarts in private Supabase Storage.
 
 ## 5. Test the live address
 
-Send an email from an allowed address to `agent@requests.brianan.ca`:
+Send an email to `agent@requests.brianan.ca`:
 
 ```text
 Subject: Filing request
@@ -106,9 +146,10 @@ Category counts describe memberships, including overlap between Key Documents an
 
 ## Reliability and operations
 
-The webhook returns success only after a request is saved in PostgreSQL.
+The webhook saves a request in PostgreSQL before asking Cloud Run to start the worker.
+If dispatch fails, it returns HTTP 503 and retains the request for provider retry or the scheduled recovery check.
 Duplicate emails are deduplicated by sender and Message-ID.
-The canonical From address must be allowlisted and authenticate through an aligned provider-reported SPF or DKIM pass.
+The canonical From address must authenticate through an aligned provider-reported SPF or DKIM pass and satisfy any configured sender restriction.
 Automatic replies, mailing-list traffic, and requests to a different recipient are ignored.
 Incoming webhook bodies are limited to 1 MiB because requests do not require attachments.
 
@@ -132,7 +173,8 @@ LIMIT 50;
 ```
 
 The worker records upload intent before sending file bytes, so retention also discovers uploads interrupted by a crash.
-It deletes artifacts for completed, failed, or uncertain jobs after seven days, checking hourly while it is running.
+It deletes artifacts for completed, failed, or uncertain jobs after seven days, checking at the start of an execution and hourly while it runs.
+The scheduled recovery check also detects artifacts due for cleanup.
 The manifest and job metadata remain in PostgreSQL for audit.
 Keep only the API and worker endpoints configured for this application; credentials belong in the hosting environment.
 
@@ -176,3 +218,8 @@ SendGrid needs a publicly reachable HTTPS destination; localhost alone is not a 
 - [Supabase PostgreSQL connection options](https://supabase.com/docs/guides/database/connecting-to-postgres)
 - [Supabase S3 authentication](https://supabase.com/docs/guides/storage/s3/authentication)
 - [Render Blueprints](https://render.com/docs/blueprint-spec)
+- [Cloud Run Jobs execution](https://cloud.google.com/run/docs/execute/jobs)
+- [Cloud Run pricing](https://cloud.google.com/run/pricing)
+- [Cloud Run container filesystem](https://cloud.google.com/run/docs/container-contract#filesystem)
+- [Cloud Scheduler pricing](https://cloud.google.com/scheduler/pricing)
+- [Google Cloud budgets](https://cloud.google.com/billing/docs/how-to/budgets)

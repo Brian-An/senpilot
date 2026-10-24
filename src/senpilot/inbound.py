@@ -138,7 +138,11 @@ def parse_inbound(
 ) -> IncomingEmail | None:
     sender = address(_text(payload, "sender", 512))
     recipient = address(_text(payload, "recipient", 512))
-    if sender == agent_email or sender not in allowed_senders or recipient != agent_email:
+    if (
+        sender == agent_email
+        or ("*" not in allowed_senders and sender not in allowed_senders)
+        or recipient != agent_email
+    ):
         return None
     headers: dict[str, str] = {}
     raw_headers = payload.get("message-headers", [])

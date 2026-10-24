@@ -211,6 +211,22 @@ class JobStore:
         await self._one("SELECT 1 FROM senpilot_private.jobs LIMIT 1")
         return True
 
+    async def has_work(self) -> bool:
+        row = await self._one(
+            """SELECT EXISTS (
+                 SELECT 1 FROM senpilot_private.jobs WHERE
+                   (state='queued' AND available_at<=now() AND attempts<3) OR
+                   (state IN ('processing','ready','sending') AND lease_until<now())
+               ) OR EXISTS (
+                 SELECT 1 FROM senpilot_private.artifacts a
+                 JOIN senpilot_private.jobs j ON j.id=a.job_id
+                 WHERE j.state IN ('sent','failed','uncertain')
+                 AND j.updated_at<now()-interval '7 days'
+               ) AS pending"""
+        )
+        assert row is not None
+        return bool(row["pending"])
+
     async def expired_artifacts(self) -> list[tuple[UUID, str]]:
         async with self.pool.connection() as connection:
             cursor = await connection.execute(

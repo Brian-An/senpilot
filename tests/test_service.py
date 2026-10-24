@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import threading
@@ -19,7 +20,8 @@ from senpilot.config import WebSettings, WorkerSettings
 from senpilot.jobs import JobStore
 from senpilot.storage import ArtifactStore
 from senpilot.web import create_app
-from senpilot.worker import Worker
+from senpilot.worker import Worker, run_worker
+from tests.service_fixtures import TEST_DATABASE
 from tests.test_jobs import incoming
 
 
@@ -39,6 +41,30 @@ class OutboundHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args: object) -> None:
         pass
+
+
+@pytest.mark.parametrize("mode,count", [("drain", 2), ("once", 1)])
+async def test_finite_worker_sends_queued_replies_and_exits(
+    store: JobStore,
+    worker_settings: WorkerSettings,
+    sender: OutboundServer,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    count: int,
+) -> None:
+    config = replace(worker_settings, sendgrid_api_base=f"http://127.0.0.1:{sender.server_port}")
+    monkeypatch.setattr(WorkerSettings, "from_env", lambda: config)
+    identifiers = []
+    for number in range(2):
+        email = replace(
+            incoming(str(number)), request=None, clarification="Please clarify the request."
+        )
+        identifiers.append(await store.enqueue(email))
+    await asyncio.wait_for(run_worker(**{mode: True}), timeout=10)
+    assert len(sender.received) == count
+    assert [await store.state(identifier) for identifier in identifiers] == (
+        ["sent", "sent"] if mode == "drain" else ["sent", "queued"]
+    )
 
 
 @pytest.fixture
@@ -100,6 +126,43 @@ def signed_email(
     )
 
 
+async def test_health_checks_use_paths_available_through_cloud_run(store: JobStore) -> None:
+    app = create_app(WebSettings(TEST_DATABASE, "agent@example.com", frozenset(), "unused"), store)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        assert (await client.get("/health")).json() == {"status": "ok"}
+        assert (await client.get("/ready")).json() == {"status": "ready"}
+
+
+@pytest.mark.parametrize("spf,expected", [("pass", "queued"), ("fail", "ignored")])
+async def test_public_agent_accepts_authenticated_senders_and_rejects_spoofing(
+    store: JobStore, spf: str, expected: str
+) -> None:
+    body, headers, public = signed_email("Key Documents M12205", spf=spf)
+    config = WebSettings(TEST_DATABASE, "agent@example.com", frozenset({"*"}), public)
+    app = create_app(config, store)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        response = await client.post("/webhooks/sendgrid/inbound", content=body, headers=headers)
+        assert response.status_code == 200
+        assert response.json()["status"] == expected
+
+
+def test_public_agent_configuration_accepts_wildcard(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key, value in {
+        "DATABASE_URL": TEST_DATABASE,
+        "AGENT_EMAIL": "agent@example.com",
+        "ALLOWED_SENDERS": "*",
+        "SENDGRID_INBOUND_PUBLIC_KEY": "test-key",
+    }.items():
+        monkeypatch.setenv(key, value)
+    assert WebSettings.from_env().allowed_senders == frozenset({"*"})
+
+
 @pytest.mark.parametrize("scenario", ["normal", "large"])
 async def test_signed_email_to_real_download_and_reply(
     store: JobStore,
@@ -118,7 +181,7 @@ async def test_signed_email_to_real_download_and_reply(
         app.router.lifespan_context(app),
         httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as api,
     ):
-        assert (await api.get("/readyz")).status_code == 200
+        assert (await api.get("/ready")).status_code == 200
         response = await api.post("/webhooks/sendgrid/inbound", content=body, headers=headers)
         assert response.status_code == 200
         assert (

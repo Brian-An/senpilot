@@ -62,6 +62,10 @@ def main(argv: list[str] | None = None) -> None:
         "SENDGRID_API_KEY": worker.sendgrid_api_key,
         "SUPABASE_S3_SECRET_ACCESS_KEY": worker.s3_secret_key,
     }
+    worker_secrets = WORKER_SECRETS
+    if worker.openai_api_key:
+        values["OPENAI_API_KEY"] = worker.openai_api_key
+        worker_secrets += ("OPENAI_API_KEY",)
     configuration = {
         **values,
         "SENDGRID_INBOUND_PUBLIC_KEY": web.public_key,
@@ -69,6 +73,7 @@ def main(argv: list[str] | None = None) -> None:
         "SUPABASE_REGION": worker.s3_region,
         "SUPABASE_S3_ACCESS_KEY_ID": worker.s3_access_key,
         "ALLOWED_SENDERS": ",".join(web.allowed_senders),
+        "OPENAI_MODEL": worker.openai_model,
     }
     for key, value in configuration.items():
         if any(
@@ -138,7 +143,7 @@ def main(argv: list[str] | None = None) -> None:
         if name not in existing:
             gcloud("secrets", "create", name, "--replication-policy=automatic")
         gcloud("secrets", "versions", "add", name, "--data-file=-", data=value)
-        for account, keys in ((api_account, API_SECRETS), (worker_account, WORKER_SECRETS)):
+        for account, keys in ((api_account, API_SECRETS), (worker_account, worker_secrets)):
             if key in keys:
                 gcloud(
                     "secrets",
@@ -191,8 +196,9 @@ def main(argv: list[str] | None = None) -> None:
                 "SUPABASE_REGION": worker.s3_region,
                 "SUPABASE_S3_ACCESS_KEY_ID": worker.s3_access_key,
                 "SUPABASE_STORAGE_BUCKET": worker.bucket,
+                "OPENAI_MODEL": worker.openai_model,
             },
-            "--set-secrets": {key: f"{secret_name(key)}:latest" for key in WORKER_SECRETS},
+            "--set-secrets": {key: f"{secret_name(key)}:latest" for key in worker_secrets},
         },
     )
     gcloud(

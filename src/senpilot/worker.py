@@ -5,7 +5,7 @@ import json
 import logging
 import tempfile
 import time
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import cast
 from uuid import uuid4
@@ -13,6 +13,7 @@ from uuid import uuid4
 import httpx
 
 from senpilot.config import WorkerSettings
+from senpilot.extraction import extract_request
 from senpilot.jobs import Job, JobStore, LeaseLost
 from senpilot.models import DocumentType, DownloadRequest
 from senpilot.pipeline import download_matter
@@ -91,6 +92,11 @@ class Worker:
             attachment: Path | None = None
             if job.state == "processing":
                 request = job.email.get("request")
+                extraction_text = job.email.get("extraction_text")
+                if request is None and isinstance(extraction_text, str) and extraction_text:
+                    extracted = await extract_request(self.client, self.settings, extraction_text)
+                    if extracted is not None:
+                        request = asdict(extracted)
                 manifest: dict[str, object] = {}
                 key: str | None = None
                 filename: str | None = None

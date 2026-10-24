@@ -21,6 +21,38 @@ CLARIFICATION = (
     "Exhibits, Key Documents, Other Documents, Transcripts, or Recordings. "
     "Please request one matter and one type per email."
 )
+REQUEST_WORDS = frozenset(
+    [
+        "hi",
+        "hello",
+        "agent",
+        "senpilot",
+        "please",
+        "can",
+        "could",
+        "would",
+        "you",
+        "give",
+        "get",
+        "send",
+        "download",
+        "me",
+        "the",
+        "files",
+        "file",
+        "documents",
+        "from",
+        "for",
+        "of",
+        "matter",
+        "number",
+        "thanks",
+        "thank",
+        "filing",
+        "request",
+        "re",
+    ]
+)
 
 
 @dataclass(frozen=True)
@@ -30,6 +62,7 @@ class IncomingEmail:
     message_id: str
     request: DownloadRequest | None
     clarification: str | None
+    extraction_text: str = ""
 
 
 def verify_signature(
@@ -133,6 +166,10 @@ def _text(payload: dict[str, object], name: str, limit: int = 20_000) -> str:
     return value
 
 
+def matter_candidates(text: str) -> set[str]:
+    return {f"M{number}" for number in re.findall(r"\b(?:M\s*[-#:]?\s*)?([0-9]{5})\b", text, re.I)}
+
+
 def parse_inbound(
     payload: dict[str, object], agent_email: str, allowed_senders: set[str] | frozenset[str]
 ) -> IncomingEmail | None:
@@ -183,6 +220,17 @@ def parse_inbound(
         if re.search(rf"\b{re.escape(category.value)}\b", text, flags=re.I)
     ]
     request = None
-    if len(matters) == 1 and len(categories) == 1:
-        request = DownloadRequest(matters.pop(), categories[0])
-    return IncomingEmail(sender, subject, message_id, request, None if request else CLARIFICATION)
+    if len(matters) == 1 and len(matter_candidates(text)) == 1 and len(categories) == 1:
+        remainder = re.sub(r"\bM[0-9]{5}\b", " ", text, flags=re.I)
+        remainder = re.sub(rf"\b{re.escape(categories[0].value)}\b", " ", remainder, flags=re.I)
+        # Extra wording can negate the request or introduce another informal category.
+        if set(re.findall(r"\w+", remainder.casefold())) <= REQUEST_WORDS:
+            request = DownloadRequest(matters.pop(), categories[0])
+    return IncomingEmail(
+        sender,
+        subject,
+        message_id,
+        request,
+        None if request else CLARIFICATION,
+        "" if request else text,
+    )

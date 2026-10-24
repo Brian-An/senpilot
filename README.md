@@ -115,6 +115,8 @@ print(result.status, result.zip_path, result.manifest_path)
 In an async application, call `await download_matter(...)` directly.
 The CLI and reusable function use the same browser adapter and verification code.
 The hosted email service uses Twilio SendGrid, a durable Supabase PostgreSQL queue, and private Supabase Storage artifacts.
+Exact requests use rules; an optional worker-side OpenAI fallback interprets informal wording such as "key docs for matter 12205".
+Ambiguous or invalid requests receive a clarification reply.
 See [DEPLOYMENT.md](DEPLOYMENT.md) for the `agent@requests.brianan.ca` setup and Cloud Run deployment.
 OCR, embeddings, and search remain separate follow-up work.
 

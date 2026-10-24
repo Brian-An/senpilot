@@ -1,0 +1,57 @@
+.env.example
+  s_0d037b12070813::t_96248c2771c646 11-14
+tests/test_cloud_deployment.py
+  s_0d037b12070813::t_88bacafa6e8929 67,88,100-149
+  s_0d037b12070813::t_02edbaeee46c63 150-157
+DEPLOYMENT.md
+  s_0d037b12070813::t_96248c2771c646 97-99,159-167,208,239-240
+src/senpilot/worker.py
+  s_0d037b12070813::t_7bcc40c01ca51b 8,16,95-99
+tests/test_email.py
+  s_0d037b12070813::t_9ecc5782ce0cdb 75-87
+  s_0d037b12070813::t_4ed6444d0acf29 88-93
+tests/test_service.py
+  s_0d037b12070813::t_9ecc5782ce0cdb 28,33,41,45-47,54-56,60-62,65,75-85,99
+  s_0d037b12070813::t_31d7d157fdf36b 29-32,34-40,42-44,48-53,57-59,63-64,66-74,86-98,100-104
+README.md
+  s_0d037b12070813::t_96248c2771c646 118-119
+scripts/deploy_cloud_run.py
+  s_0d037b12070813::t_96248c2771c646 65-68,76,146,199,201
+src/senpilot/extraction.py
+  s_0d037b12070813::t_96248c2771c646 21,55-62
+  s_0d037b12070813::t_2ba7af0ee43af9 1-2,6-8,35-39
+  s_0d037b12070813::t_6add3d268d01f6 3-5,10-20,22-34,40,42-54,63-99
+  s_0d037b12070813::t_a7d565adf62451 9,41
+tests/test_extraction.py
+  s_0d037b12070813::t_43985b2f0de0fc 1-16,20-46,57-62,84-87,91-101,113-121,134-138,147-156
+  s_0d037b12070813::t_ec547ffcd6d1b3 17-19,47-56,63-83,88-90,102-112,122-133,139-146,157-165
+src/senpilot/config.py
+  s_0d037b12070813::t_4c63c5595b65d6 80-82
+  s_0d037b12070813::t_6042e59140a553 77-78,96-97
+  s_0d037b12070813::t_dd16f4b52d27f4 79
+src/senpilot/inbound.py
+  s_0d037b12070813::t_6042e59140a553 37
+  s_0d037b12070813::t_16abd71fb6ae5e 24-27
+  s_0d037b12070813::t_858230e956c90f 28-36,38-55,65,169-172,223-236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6d9e503275c869230759a2bf094fbe14ac61f244",
+  "prompts": {},
+  "humans": {
+    "h_3f7c194ad24a0c": {
+      "author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  },
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

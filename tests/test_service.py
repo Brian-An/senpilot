@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import threading
@@ -19,7 +20,7 @@ from senpilot.config import WebSettings, WorkerSettings
 from senpilot.jobs import JobStore
 from senpilot.storage import ArtifactStore
 from senpilot.web import create_app
-from senpilot.worker import Worker
+from senpilot.worker import Worker, run_worker
 from tests.test_jobs import incoming
 
 
@@ -39,6 +40,30 @@ class OutboundHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args: object) -> None:
         pass
+
+
+@pytest.mark.parametrize("mode,count", [("drain", 2), ("once", 1)])
+async def test_finite_worker_sends_queued_replies_and_exits(
+    store: JobStore,
+    worker_settings: WorkerSettings,
+    sender: OutboundServer,
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
+    count: int,
+) -> None:
+    config = replace(worker_settings, sendgrid_api_base=f"http://127.0.0.1:{sender.server_port}")
+    monkeypatch.setattr(WorkerSettings, "from_env", lambda: config)
+    identifiers = []
+    for number in range(2):
+        email = replace(
+            incoming(str(number)), request=None, clarification="Please clarify the request."
+        )
+        identifiers.append(await store.enqueue(email))
+    await asyncio.wait_for(run_worker(**{mode: True}), timeout=10)
+    assert len(sender.received) == count
+    assert [await store.state(identifier) for identifier in identifiers] == (
+        ["sent", "sent"] if mode == "drain" else ["sent", "queued"]
+    )
 
 
 @pytest.fixture

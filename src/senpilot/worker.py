@@ -157,7 +157,7 @@ class Worker:
             await self.store.artifact_deleted(job_id, key)
 
 
-async def run_worker(*, once: bool = False) -> None:
+async def run_worker(*, once: bool = False, drain: bool = False) -> None:
     settings = WorkerSettings.from_env()
     artifacts = ArtifactStore(settings)
     try:
@@ -169,7 +169,7 @@ async def run_worker(*, once: bool = False) -> None:
                     await worker.cleanup()
                     last_cleanup = time.monotonic()
                 worked = await worker.run_once()
-                if once:
+                if once or (drain and not worked):
                     return
                 if not worked:
                     await asyncio.sleep(5)

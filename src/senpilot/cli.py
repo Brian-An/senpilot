@@ -27,7 +27,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     subcommands = parser.add_subparsers(dest="command", required=True)
     subcommands.add_parser("migrate", help="Initialize the private PostgreSQL job schema")
     worker = subcommands.add_parser("worker", help="Process queued email requests")
-    worker.add_argument("--once", action="store_true", help="Process at most one queued job")
+    mode = worker.add_mutually_exclusive_group()
+    mode.add_argument("--once", action="store_true", help="Process at most one queued job")
+    mode.add_argument(
+        "--drain", action="store_true", help="Process available jobs and exit when idle"
+    )
     download = subcommands.add_parser("download", help="Download one matter's document category")
     download.add_argument("matter_number", help="Matter number, for example M12205")
     download.add_argument(
@@ -53,7 +57,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             operation = (
                 migrate(required("DATABASE_URL"))
                 if args.command == "migrate"
-                else run_worker(once=args.once)
+                else run_worker(once=args.once, drain=args.drain)
             )
             asyncio.run(operation)
         except ValueError as exc:

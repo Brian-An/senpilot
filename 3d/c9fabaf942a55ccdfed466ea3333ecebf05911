@@ -1,0 +1,25 @@
+src/senpilot/archive.py
+  s_0d037b12070813::t_4e6d343f40ae22 1-57
+src/senpilot/models.py
+  s_0d037b12070813::t_4e6d343f40ae22 1-30
+tests/test_archive.py
+  s_0d037b12070813::t_329372726922fc 1-86
+uv.lock
+  s_0d037b12070813::t_57210a21d14041 1-234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3dc9fabaf942a55ccdfed466ea3333ecebf05911",
+  "prompts": {},
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

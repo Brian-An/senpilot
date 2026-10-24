@@ -158,7 +158,9 @@ Incoming webhook bodies are limited to 1 MiB because requests do not require att
 
 Exact matter numbers and document categories are parsed with rules.
 Unresolved requests retain their subject and cleaned plain text in the private job record for worker-side AI extraction after deduplication.
-The AI receives this request text without sender addresses, mail headers, attachments, or stripped quoted history.
+The AI receives only this request text; routing addresses, mail headers, and attachments are not added as separate inputs.
+Recognized quoted reply history is stripped before persistence.
+Personal information included in the subject or current message body can still be sent to OpenAI.
 It uses OpenAI's Responses API with a strict JSON schema, no tools, and `store=false`.
 Provider abuse-monitoring retention can still apply; `store=false` disables stored Responses state rather than guaranteeing zero retention.
 Only one matter number grounded in the request and one supported category can proceed to the downloader, with the existing ten-file limit.

@@ -1,0 +1,29 @@
+src/senpilot/dispatch.py
+  s_0d037b12070813::t_0dff9cc0284a15 1-22
+src/senpilot/config.py
+  s_0d037b12070813::t_0dff9cc0284a15 31-42
+  s_0d037b12070813::t_d678256e5389c4 43-46,56-57
+src/senpilot/jobs.py
+  s_0d037b12070813::t_0dff9cc0284a15 214-229
+src/senpilot/web.py
+  s_0d037b12070813::t_0dff9cc0284a15 4,8,14,22-27,35-37,55-78,114-115
+tests/test_dispatch.py
+  s_0d037b12070813::t_d16c5d1d96acf7 1-139
+  s_0d037b12070813::t_e5fb718a8bc0a1 140-143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c0c2d3f9441cf7c36a4297fc9302a7612a55f116",
+  "prompts": {},
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

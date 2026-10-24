@@ -187,6 +187,7 @@ class Observation:
             for ref in candidates
             if not any(other != ref and self.contains(ref, other) for other in candidates)
         ]
+        leaves.sort(key=lambda ref: (self.node(ref)["bbox"][1], self.node(ref)["bbox"][0]))
         seen = self._seen_refs(leaves, examined)
         return [ref for ref in leaves if ref not in seen]
 
@@ -198,7 +199,9 @@ class Observation:
         if not isinstance(peers, list) or ref not in peers:
             raise SiteError("document entry has no verifiable source ordering")
         seen = self._seen_refs(peers, examined)
-        for peer in peers:
+        for peer in sorted(
+            peers, key=lambda ref: (self.node(ref)["bbox"][1], self.node(ref)["bbox"][0])
+        ):
             if peer in seen:
                 continue
             if peer != ref:

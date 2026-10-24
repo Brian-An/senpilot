@@ -46,6 +46,11 @@ function showFiles(category) {
  ${scenario==='direct' ? 'Download PDF' : 'Retrieve attachment'}</button>
  </article>`).join('');
  document.querySelector('#files').innerHTML = '<h2>'+category+'</h2>'+rows;
+ if (scenario==='visual_order') {
+   const list=document.querySelector('#files');
+   list.style.display='flex'; list.style.flexDirection='column';
+   list.querySelectorAll('article').forEach((row,i)=>row.style.order=20-i);
+ }
  if (scenario==='deep_rows') document.querySelectorAll('article').forEach(row=>{
    const inner=row.innerHTML; row.innerHTML='<div>'.repeat(7)+inner+'</div>'.repeat(7);
  });
@@ -202,6 +207,7 @@ def scripted_model(request: httpx.Request) -> httpx.Response:
             for n in nodes
             if n["tag"] == "article" and not any(identifier in n["text"] for identifier in examined)
         ]
+        rows.sort(key=lambda n: (n["bbox"][1], n["bbox"][0]))
         if not rows:
             result["action"] = "scroll"
         else:

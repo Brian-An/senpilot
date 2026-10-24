@@ -507,3 +507,17 @@ async def test_ai_recovery_excludes_html_disguised_as_a_pdf(redesigned_site, tmp
     assert result.downloaded_count == 1
     assert manifest["failures"][0]["document"]["identifier"] == "200000"
     assert "HTML" in manifest["failures"][0]["error"]
+
+
+async def test_recovery_uses_visual_row_order_when_dom_order_differs(redesigned_site, tmp_path):
+    async with httpx.AsyncClient(transport=httpx.MockTransport(scripted_model)) as client:
+        result = await download_matter(
+            DownloadRequest("M12205", DocumentType.KEY_DOCUMENTS),
+            tmp_path,
+            base_url=redesigned_site[0] + "?case=visual_order",
+            timeout_ms=200,
+            recovery=BrowserRecovery(client, "test-key", "test-model"),
+        )
+    assert result.status == "complete"
+    manifest = json.loads(result.manifest_path.read_text())
+    assert [f["document"]["identifier"] for f in manifest["files"]] == ["200001", "200000"]

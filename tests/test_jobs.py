@@ -1,13 +1,55 @@
 import asyncio
+import secrets
 from uuid import uuid4
 
 import psycopg
 import pytest
 
 from senpilot.inbound import IncomingEmail
-from senpilot.jobs import JobStore, LeaseLost
+from senpilot.jobs import JobStore, LeaseLost, migrate
 from senpilot.models import DocumentType, DownloadRequest
 from tests.service_fixtures import TEST_DATABASE
+
+
+async def test_schema_owner_can_migrate_without_database_creation_privileges(
+    store: JobStore,
+) -> None:
+    role = f"senpilot_backend_{uuid4().hex[:12]}"
+    password = secrets.token_urlsafe(32)
+    async with await psycopg.AsyncConnection.connect(TEST_DATABASE, autocommit=True) as connection:
+        await connection.execute(
+            psycopg.sql.SQL("CREATE ROLE {} LOGIN NOINHERIT PASSWORD {}").format(
+                psycopg.sql.Identifier(role), psycopg.sql.Literal(password)
+            )
+        )
+        try:
+            await connection.execute(
+                psycopg.sql.SQL("ALTER SCHEMA senpilot_private OWNER TO {}").format(
+                    psycopg.sql.Identifier(role)
+                )
+            )
+            for table in ("jobs", "artifacts"):
+                await connection.execute(
+                    psycopg.sql.SQL("ALTER TABLE senpilot_private.{} OWNER TO {}").format(
+                        psycopg.sql.Identifier(table), psycopg.sql.Identifier(role)
+                    )
+                )
+            limited = psycopg.conninfo.make_conninfo(TEST_DATABASE, user=role, password=password)
+            await migrate(limited)
+            async with JobStore(limited) as database:
+                await database.enqueue(incoming())
+                assert await database.claim(uuid4()) is not None
+        finally:
+            await connection.execute("ALTER SCHEMA senpilot_private OWNER TO postgres")
+            for table in ("jobs", "artifacts"):
+                await connection.execute(
+                    psycopg.sql.SQL("ALTER TABLE senpilot_private.{} OWNER TO postgres").format(
+                        psycopg.sql.Identifier(table)
+                    )
+                )
+            await connection.execute(
+                psycopg.sql.SQL("DROP ROLE {}").format(psycopg.sql.Identifier(role))
+            )
 
 
 def incoming(identifier: str = "request") -> IncomingEmail:

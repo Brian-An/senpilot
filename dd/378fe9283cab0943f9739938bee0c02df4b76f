@@ -1,0 +1,30 @@
+DEPLOYMENT.md
+  s_0d037b12070813::t_29b8e986619ec1 167-181,226-227
+README.md
+  s_0d037b12070813::t_fb51d9131b8847 85-93
+src/senpilot/worker.py
+  s_0d037b12070813::t_d1b5f72ff1b484 20,113-117
+tests/test_service.py
+  s_0d037b12070813::t_50fce0bdf7b106 451-514
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dd378fe9283cab0943f9739938bee0c02df4b76f",
+  "prompts": {},
+  "humans": {
+    "h_3f7c194ad24a0c": {
+      "author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  },
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

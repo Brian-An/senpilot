@@ -1,0 +1,46 @@
+pyproject.toml
+  s_0d037b12070813::t_c3685b81ee7a29 12
+src/senpilot/models.py
+  s_0d037b12070813::t_005b40c6fdc30d 54
+src/senpilot/pipeline.py
+  s_0d037b12070813::t_1f016253a81bca 22-23,36,52-53,59-61,65-87,129-130,141-168
+src/senpilot/recovery.py
+  s_0d037b12070813::t_04544294fdd17a 1-424
+src/senpilot/recovery_browser.py
+  s_0d037b12070813::t_a430d9fdd62332 1-365
+src/senpilot/recovery_evidence.py
+  s_0d037b12070813::t_2d58673b72eff1 1-156
+src/senpilot/uarb.py
+  s_0d037b12070813::t_c78f743a05be09 35-38,43-44,60-76,114,117-125,153-156,160-163,166-197,212,329
+tests/conftest.py
+  s_0d037b12070813::t_d3ae728303ee69 9,40-43,76,79-85
+tests/recovery_fixtures.py
+  s_0d037b12070813::t_5a327b68a50399 1-240
+tests/test_pipeline.py
+  s_0d037b12070813::t_90c543a8985b0c 251-263
+tests/test_recovery.py
+  s_0d037b12070813::t_aa0f06b187d270 1-509
+uv.lock
+  s_0d037b12070813::t_ec1f110e10fd3e 1755,1775
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "16a85a45634bbeb40a982690ef9e336410b8d25c",
+  "prompts": {},
+  "humans": {
+    "h_3f7c194ad24a0c": {
+      "author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  },
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

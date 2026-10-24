@@ -1,0 +1,33 @@
+src/senpilot/pipeline.py
+  s_0d037b12070813::t_5bcb7d15cabcc0 65,68-71
+tests/test_pipeline.py
+  s_0d037b12070813::t_d636df621c6c2e 193-199,202-212,216-226
+  s_0d037b12070813::t_15ca69ed771f5f 200-201,213-215,227-243
+  s_0d037b12070813::t_2d0d869f2fe5e5 244-248
+src/senpilot/models.py
+  s_0d037b12070813::t_5bcb7d15cabcc0 72-78
+tests/conftest.py
+  s_0d037b12070813::t_15ca69ed771f5f 32,91-92,104-117,123,134
+  s_0d037b12070813::t_d636df621c6c2e 87-88,129,132-133
+README.md
+  s_0d037b12070813::t_f3ad99c9a79d05 71
+src/senpilot/uarb.py
+  s_0d037b12070813::t_5bcb7d15cabcc0 19,79,82-84,87-88,197,200,255-258,264-266
+  s_0d037b12070813::t_f3ad99c9a79d05 202-205,209-211,214-217,259-263
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "746a48fb1ddc188fadcbdad50458d487985a78ce",
+  "prompts": {},
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

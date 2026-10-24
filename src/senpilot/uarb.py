@@ -16,6 +16,7 @@ from playwright.async_api import TimeoutError as BrowserTimeout
 
 from senpilot.archive import safe_filename, validate_file
 from senpilot.models import (
+    DocumentDownload,
     DocumentType,
     DownloadedFile,
     DownloadFailure,
@@ -75,11 +76,16 @@ def parse_document(fields: list[str], category: DocumentType) -> SourceDocument:
     date = next((v for v in fields if re.fullmatch(r"\d{2}/\d{2}/\d{4}", v)), "")
     security = next((v for v in fields if v.lower() in {"public", "confidential"}), None)
     extension = next((v for v in reversed(fields) if re.fullmatch(r"\.[A-Za-z0-9]+", v)), "")
-    if category == DocumentType.EXHIBITS:
+    if category in {DocumentType.EXHIBITS, DocumentType.KEY_DOCUMENTS}:
         title = fields[0]
         identifier = next((v for v in fields[1:] if v not in {date, security, extension}), "")
+        if len(fields) >= 5:
+            security = fields[2] or None
+            identifier = fields[3]
     elif fields[0].isdigit():
         identifier, title = fields[:2]
+        if len(fields) >= 5:
+            security = fields[3] or None
     else:
         identifier = ""
         title = next((v for v in fields if v not in {date, security, extension}), category.value)
@@ -188,18 +194,27 @@ class UarbSite:
 
     async def download_document(
         self, document: SourceDocument, destination: Path, remaining: int
-    ) -> tuple[list[DownloadedFile], list[DownloadFailure]]:
+    ) -> DocumentDownload:
         files: list[DownloadedFile] = []
         failures: list[DownloadFailure] = []
+        navigation_error: str | None = None
         if document.security and document.security.lower() != "public":
-            return [], [
-                DownloadFailure(document, "source marks this entry as unavailable to the public")
-            ]
+            return DocumentDownload(
+                [],
+                [DownloadFailure(document, "source marks this entry as unavailable to the public")],
+            )
         dialog = self.page.get_by_role("dialog").filter(
             has_text="Your files are ready for download"
         )
+        export_dialog = self.page.get_by_role("dialog").filter(
+            has_text="Specify a filename to export."
+        )
         try:
             await self._row(document).get_by_role("button", name="GO GET IT", exact=True).click()
+            await self.page.get_by_role("dialog").last.wait_for(state="visible")
+            if await export_dialog.is_visible():
+                # Transcripts and recordings retain the source's proposed export filename.
+                await export_dialog.get_by_role("button", name="OK", exact=True).click()
             await dialog.wait_for(state="visible")
             buttons = dialog.locator(".fm-download-button")
             total = await buttons.count()
@@ -237,7 +252,15 @@ class UarbSite:
         except (BrowserError, SiteError) as exc:
             failures.append(DownloadFailure(document, str(exc)))
         finally:
-            if await dialog.is_visible():
-                await dialog.get_by_role("button", name="Close", exact=True).click()
-                await dialog.wait_for(state="hidden")
-        return files, failures
+            try:
+                if await dialog.is_visible():
+                    await dialog.get_by_role("button", name="Close", exact=True).click()
+                    await dialog.wait_for(state="hidden")
+                if await export_dialog.is_visible():
+                    await export_dialog.get_by_role("button", name="Cancel", exact=True).click()
+                    await export_dialog.wait_for(state="hidden")
+                if await self.page.get_by_role("dialog").count():
+                    navigation_error = "an unexpected source dialog prevents further navigation"
+            except BrowserError as exc:
+                navigation_error = f"download dialog could not be closed: {exc}"
+        return DocumentDownload(files, failures, navigation_error)

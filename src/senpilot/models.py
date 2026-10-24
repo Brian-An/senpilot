@@ -69,6 +69,13 @@ class DownloadFailure:
     original_filename: str | None = None
 
 
+@dataclass(frozen=True)
+class DocumentDownload:
+    files: list[DownloadedFile]
+    failures: list[DownloadFailure]
+    navigation_error: str | None = None
+
+
 class ResultStatus(StrEnum):
     COMPLETE = "complete"
     EMPTY = "empty"

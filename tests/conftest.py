@@ -29,6 +29,7 @@ tr .fm-textarea { position: static; display: inline-block; margin-right: 12px; }
 const scenario = new URLSearchParams(location.search).get('case') || 'normal';
 const counts = {'Exhibits':3, 'Key Documents':2, 'Other Documents':12,
                 'Transcripts':0, 'Recordings':1};
+if (scenario === 'export') counts['Transcripts'] = 2;
 let committed = '';
 const editor = document.querySelector('.text');
 document.querySelector('.search-box').onclick = function () {
@@ -83,8 +84,12 @@ function renderRows(category,start) {
     let values;
     if (category === 'Exhibits') {
       values = [`Application ${i+1}`, '04/07/2025', security, `H-${i+1}`, '.pdf'];
+    } else if (category === 'Key Documents') {
+      values = [`Key document ${i+1}`, '04/07/2025', security, `${100000+i}`, '.pdf'];
     } else if (category === 'Recordings') {
       values = ['04/07/2025', 'Hearing recording', '.mp3'];
+    } else if (category === 'Transcripts') {
+      values = ['09/12/2022', 'September 12, 2022', 'Pdf', '', '', '', 'Public'];
     } else {
       const identifier = scenario === 'idcollision' ? '100000' : `${100000+i}`;
       values = [identifier,`Board document ${i+1}`,'04/07/2025',security,'.pdf'];
@@ -96,18 +101,36 @@ function renderRows(category,start) {
   document.querySelector('tbody').innerHTML = rows.join('');
 }
 function downloadDialog(index,category) {
+  if (scenario === 'export') {
+    const dialog = document.createElement('div'); dialog.setAttribute('role','dialog');
+    dialog.setAttribute('aria-label','Export Field to File');
+    dialog.className = 'v-window';
+    const filename = category === 'Recordings' ? 'hearing.mp3' : 'transcript.pdf';
+    dialog.innerHTML = 'Specify a filename to export. Save As:' +
+      `<input type="text" value="${filename}">` +
+      `<button onclick="this.parentElement.remove();showDownloadDialog(${index},'${category}')">
+        OK</button><button onclick="this.parentElement.remove()">Cancel</button>`;
+    document.body.append(dialog); return;
+  }
+  showDownloadDialog(index,category);
+}
+function showDownloadDialog(index,category) {
   const dialog = document.createElement('div'); dialog.className = 'v-window';
   dialog.setAttribute('role','dialog'); dialog.setAttribute('aria-label','Download Files');
   let filenames = [['duplicate','idcollision'].includes(scenario)
     ? 'same.pdf' : `${100000+index}.pdf`];
   if (category === 'Recordings') filenames = ['hearing.mp3'];
+  if (category === 'Transcripts') filenames = ['transcript.pdf'];
   if (scenario === 'multiple') filenames = [`${index}-a.pdf`, `${index}-b.pdf`];
   dialog.innerHTML = 'Your files are ready for download. '
     + 'Please click the button to download each file:'
     + filenames.map((name,j)=>`<button class="fm-download-button"
       onclick="fetchFile(${index},${j},'${name}')">${name}</button>`).join('')
-    + '<button onclick="this.parentElement.remove()">Close</button>';
+    + '<button onclick="closeDialog(this.parentElement)">Close</button>';
   document.body.append(dialog);
+}
+function closeDialog(dialog) {
+  if (scenario !== 'closeblocked') dialog.remove();
 }
 function fetchFile(index,attachment,name) {
   if (scenario === 'missing' && index === 1) return;

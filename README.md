@@ -68,6 +68,7 @@ The source can associate identical file contents with different document entries
 ## Selection and failures
 
 Documents are selected in the website's displayed order, including rows reached by scrolling its virtualized list.
+Transcripts and Recordings receive an additional export confirmation, which preserves the source's proposed filename.
 The pipeline examines at most `--limit` source entries and downloads at most `--limit` files.
 When an entry has several attached files, the remaining file limit applies to those attachments.
 Confidential entries are recorded as unavailable without requesting their files.

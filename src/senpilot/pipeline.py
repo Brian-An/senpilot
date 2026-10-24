@@ -62,11 +62,13 @@ async def download_matter(
                     if count:
                         async for document in site.documents(request.document_type, count):
                             source_entries_examined += 1
-                            saved, failed = await site.download_document(
+                            batch = await site.download_document(
                                 document, files_dir, request.limit - len(files)
                             )
-                            files.extend(saved)
-                            failures.extend(failed)
+                            files.extend(batch.files)
+                            failures.extend(batch.failures)
+                            if batch.navigation_error:
+                                raise SiteError(batch.navigation_error)
                             if (
                                 source_entries_examined >= request.limit
                                 or len(files) >= request.limit

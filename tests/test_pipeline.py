@@ -190,3 +190,59 @@ async def test_missing_download_event_times_out_and_keeps_other_files(
     manifest = json.loads(result.manifest_path.read_text())
     assert len(manifest["failures"]) == 1
     assert "Timeout" in manifest["failures"][0]["error"]
+
+
+async def test_key_documents_preserve_source_document_numbers(
+    fixture_url: str, tmp_path: Path
+) -> None:
+    result = await download_matter(
+        DownloadRequest("M12205", DocumentType.KEY_DOCUMENTS, 1),
+        tmp_path,
+        base_url=fixture_url,
+    )
+    manifest = json.loads(result.manifest_path.read_text())
+    assert result.status == "complete"
+    assert manifest["files"][0]["document"]["identifier"] == "100000"
+
+
+async def test_blocked_dialog_preserves_verified_files_and_stops_navigation(
+    fixture_url: str, tmp_path: Path
+) -> None:
+    result = await download_matter(
+        DownloadRequest("M12205", DocumentType.OTHER_DOCUMENTS, 3),
+        tmp_path,
+        base_url=f"{fixture_url}?case=closeblocked",
+        timeout_ms=1000,
+    )
+    assert result.status == "partial"
+    assert result.downloaded_count == 1
+    assert result.zip_path is not None
+    manifest = json.loads(result.manifest_path.read_text())
+    assert manifest["source_entries_examined"] == 1
+    assert "dialog" in manifest["error"].lower()
+    with zipfile.ZipFile(result.zip_path) as package:
+        assert len(package.namelist()) == 1
+        content = package.read(manifest["files"][0]["filename"])
+        assert hashlib.sha256(content).hexdigest() == manifest["files"][0]["sha256"]
+
+
+@pytest.mark.parametrize(
+    "category,filename",
+    [
+        (DocumentType.TRANSCRIPTS, "transcript.pdf"),
+        (DocumentType.RECORDINGS, "hearing.mp3"),
+    ],
+)
+async def test_export_prompt_precedes_transcript_and_recording_download(
+    fixture_url: str, tmp_path: Path, category: DocumentType, filename: str
+) -> None:
+    result = await download_matter(
+        DownloadRequest("M12205", category, 1),
+        tmp_path,
+        base_url=f"{fixture_url}?case=export",
+        timeout_ms=1000,
+    )
+    assert result.status == "complete"
+    manifest = json.loads(result.manifest_path.read_text())
+    assert result.downloaded_count == 1
+    assert manifest["files"][0]["original_filename"] == filename

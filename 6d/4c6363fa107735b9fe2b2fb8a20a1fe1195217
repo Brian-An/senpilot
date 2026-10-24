@@ -1,0 +1,19 @@
+tests/test_service.py
+  s_0d037b12070813::t_86205c388b68c2 131-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6d4c6363fa107735b9fe2b2fb8a20a1fe1195217",
+  "prompts": {},
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

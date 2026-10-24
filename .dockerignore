@@ -1,0 +1,11 @@
+.git
+.venv
+.env
+.env.*
+downloads
+dist
+docs/superpowers
+.superpowers
+__pycache__
+.pytest_cache
+.ruff_cache

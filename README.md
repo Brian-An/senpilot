@@ -114,11 +114,14 @@ print(result.status, result.zip_path, result.manifest_path)
 
 In an async application, call `await download_matter(...)` directly.
 The CLI and reusable function use the same browser adapter and verification code.
-Email intake, email delivery, durable job scheduling, OCR, embeddings, and search are outside this download milestone.
+The hosted email service uses Twilio SendGrid, a durable Supabase PostgreSQL queue, and private Supabase Storage artifacts.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the `agent@requests.brianan.ca` setup and Render Blueprint.
+OCR, embeddings, and search remain separate follow-up work.
 
 ## Development
 
 ```sh
+docker compose -f compose.test.yaml up -d --wait
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .

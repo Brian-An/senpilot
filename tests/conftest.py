@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-pytest_plugins = ["tests.service_fixtures"]
+pytest_plugins = ["tests.service_fixtures", "tests.recovery_fixtures"]
 
 PDF = b"%PDF-1.7\npublic regulatory evidence\n%%EOF\n"
 
@@ -37,8 +37,10 @@ if (scenario === 'large') counts['Other Documents'] = 1;
 let committed = '';
 const editor = document.querySelector('.text');
 document.querySelector('.search-box').onclick = function () {
-  document.querySelector('.placeholder').style.display = 'none';
-  editor.contentEditable = 'true'; editor.focus();
+  setTimeout(() => {
+    document.querySelector('.placeholder').style.display = 'none';
+    editor.contentEditable = 'true'; editor.focus();
+  }, scenario === 'delayededitor' ? 400 : 0);
 };
 editor.onblur = () => { committed = editor.textContent.trim(); };
 document.querySelector('#search').onclick = () => {
@@ -71,8 +73,16 @@ function showMatter(category) {
     ${field('Water',520,140)}
     ${box('Halifax Regional Water Commission - Windsor Street Project',150,140,360)}
     ${box('Matter No',20,100)}${box('Title - Description',150,100)}
+    ${box('Type',520,160)}${box('Status',20,160)}${box('Category',520,100)}${box('Outcome',950,100)}
     ${box('Date Received',700,100)}${box('Decision Date',820,100)}
   </div><div id="list"></div>`;
+  if (scenario === 'headerorder') {
+    const header=document.querySelector('.iwps_body,.iwps_header');
+    const fields=header.querySelectorAll('.fm-textarea');
+    const placeholder=document.createElement('span');
+    fields[1].replaceWith(placeholder); fields[6].replaceWith(fields[1]);
+    placeholder.replaceWith(fields[6]);
+  }
   if (category && scenario !== 'stalled') {
     document.querySelector('#list').innerHTML = '<div class="v-grid v-grid-scroller">' +
       `<table role="grid" style="height:${counts[category]*68}px"><tbody></tbody></table></div>`;

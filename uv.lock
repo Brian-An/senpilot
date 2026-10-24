@@ -1752,6 +1752,7 @@ dependencies = [
     { name = "httpx" },
     { name = "playwright" },
     { name = "psycopg", extra = ["binary", "pool"] },
+    { name = "pydantic" },
     { name = "uvicorn" },
 ]
 
@@ -1771,6 +1772,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28,<1" },
     { name = "playwright", specifier = ">=1.55,<2" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2,<4" },
+    { name = "pydantic", specifier = ">=2,<3" },
     { name = "uvicorn", specifier = ">=0.35,<1" },
 ]
 

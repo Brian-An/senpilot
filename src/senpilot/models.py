@@ -51,6 +51,7 @@ class SourceDocument:
     security: str | None
     extension: str
     source_fields: tuple[str, ...]
+    identifier_from_source: bool = True
 
 
 @dataclass(frozen=True)

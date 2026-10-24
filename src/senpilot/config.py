@@ -28,6 +28,22 @@ class WebSettings:
     agent_email: str
     allowed_senders: frozenset[str]
     public_key: str = field(repr=False)
+    cloud_run_job: str = ""
+    dispatch_token: str = field(default="", repr=False)
+
+    def __post_init__(self) -> None:
+        if not self.cloud_run_job and not self.dispatch_token:
+            return
+        if (
+            not re.fullmatch(
+                r"projects/[a-z0-9-]+/locations/[a-z0-9-]+/jobs/[a-z][a-z0-9-]*",
+                self.cloud_run_job,
+            )
+            or len(self.dispatch_token) < 32
+        ):
+            raise ValueError(
+                "Cloud Run requires a valid CLOUD_RUN_JOB and a 32-character DISPATCH_TOKEN"
+            )
 
     @classmethod
     def from_env(cls) -> "WebSettings":
@@ -37,6 +53,8 @@ class WebSettings:
             address(required("AGENT_EMAIL")),
             senders,
             required("SENDGRID_INBOUND_PUBLIC_KEY"),
+            os.environ.get("CLOUD_RUN_JOB", ""),
+            os.environ.get("DISPATCH_TOKEN", ""),
         )
 
 

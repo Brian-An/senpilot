@@ -1,0 +1,28 @@
+src/senpilot/extraction.py
+  s_0d037b12070813::t_ee9f88f1602fad 11,68
+src/senpilot/openai_output.py
+  s_0d037b12070813::t_1e395d15f48895 1-36
+tests/test_openai_output.py
+  s_0d037b12070813::t_49c304b40be93f 1-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "87e3c5945109c0ee1581217b07dbc26c0251f433",
+  "prompts": {},
+  "humans": {
+    "h_3f7c194ad24a0c": {
+      "author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  },
+  "sessions": {
+    "s_0d037b12070813": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16f58-923e-78a0-b895-b4a1dc57286d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "brian-an <brian.an0906@hotmail.com>"
+    }
+  }
+}

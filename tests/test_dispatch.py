@@ -141,3 +141,19 @@ async def test_due_work_includes_retry_and_cleanup_but_not_final_deliveries(
 def test_cloud_run_configuration_fails_closed(job: str, token: str) -> None:
     with pytest.raises(ValueError):
         replace(settings("public-key"), cloud_run_job=job, dispatch_token=token)
+
+
+def test_cloud_run_configuration_uses_an_application_specific_environment_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name, value in {
+        "DATABASE_URL": TEST_DATABASE,
+        "AGENT_EMAIL": "agent@example.com",
+        "ALLOWED_SENDERS": "tester@example.com",
+        "SENDGRID_INBOUND_PUBLIC_KEY": "test-public-key",
+        "DISPATCH_TOKEN": TOKEN,
+        "CLOUD_RUN_JOB": "platform-managed-job-name",
+        "SENPILOT_CLOUD_RUN_JOB": JOB_NAME,
+    }.items():
+        monkeypatch.setenv(name, value)
+    assert WebSettings.from_env().cloud_run_job == JOB_NAME

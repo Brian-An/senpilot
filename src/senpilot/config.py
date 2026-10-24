@@ -42,7 +42,7 @@ class WebSettings:
             or len(self.dispatch_token) < 32
         ):
             raise ValueError(
-                "Cloud Run requires a valid CLOUD_RUN_JOB and a 32-character DISPATCH_TOKEN"
+                "Cloud Run requires SENPILOT_CLOUD_RUN_JOB and a 32-character DISPATCH_TOKEN"
             )
 
     @classmethod
@@ -53,7 +53,7 @@ class WebSettings:
             address(required("AGENT_EMAIL")),
             senders,
             required("SENDGRID_INBOUND_PUBLIC_KEY"),
-            os.environ.get("CLOUD_RUN_JOB", ""),
+            os.environ.get("SENPILOT_CLOUD_RUN_JOB", ""),
             os.environ.get("DISPATCH_TOKEN", ""),
         )
 

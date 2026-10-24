@@ -232,7 +232,7 @@ def main(argv: list[str] | None = None) -> None:
                 "AGENT_EMAIL": web.agent_email,
                 "ALLOWED_SENDERS": ",".join(sorted(web.allowed_senders)),
                 "SENDGRID_INBOUND_PUBLIC_KEY": web.public_key,
-                "CLOUD_RUN_JOB": (
+                "SENPILOT_CLOUD_RUN_JOB": (
                     f"projects/{args.project}/locations/{args.region}/jobs/senpilot-worker"
                 ),
             },

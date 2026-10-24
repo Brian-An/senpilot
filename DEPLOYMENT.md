@@ -72,7 +72,7 @@ Use a Google Cloud project with billing enabled, the authenticated Google Cloud 
 The configured project for this setup is `senpilot-brianan`.
 Copy `.env.example` to the ignored `.env` file and fill in the Supabase and SendGrid values.
 Use exact addresses for `ALLOWED_SENDERS` so only those people can start downloads.
-Leave `CLOUD_RUN_JOB` and `DISPATCH_TOKEN` blank locally unless deliberately overriding the deployment defaults.
+Leave `SENPILOT_CLOUD_RUN_JOB` and `DISPATCH_TOKEN` blank locally unless deliberately overriding the deployment defaults.
 
 ```sh
 gcloud auth login
